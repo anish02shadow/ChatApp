@@ -1,6 +1,8 @@
 package com.example69.chatapp.ui.theme.Screens
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -9,12 +11,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
@@ -35,6 +35,104 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Searchbar2() {
+    var isSearchVisible by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(2.dp, end = 10.dp)
+            .fillMaxWidth()
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "Search Bar",
+            tint = Color.Black,
+            modifier = Modifier
+                .size(34.dp)
+                .padding(end = 8.dp)
+                .clickable {
+                    isSearchVisible = !isSearchVisible
+                }
+        )
+
+        AnimatedVisibility(
+            visible = !isSearchVisible,
+            enter = fadeIn() + slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = FastOutSlowInEasing
+                )
+            ),
+            exit = fadeOut() + slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = FastOutSlowInEasing
+                )
+            )
+        ) {
+            Text(
+                text = "MoodChat",
+                color = Color.Black,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        AnimatedVisibility(
+            visible = isSearchVisible,
+            enter = fadeIn() + slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = FastOutSlowInEasing
+                )
+            ),
+            exit = fadeOut() + slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = FastOutSlowInEasing
+                )
+            )
+        ) {
+            var text by remember {
+                mutableStateOf("")
+            }
+            var active by remember {
+                mutableStateOf(false)
+            }
+
+
+            DockedSearchBar(
+                modifier =Modifier.fillMaxWidth(0.9f).height(50.dp),
+                query = text,
+                onQueryChange = {text=it},
+                onSearch = {active=false } ,
+                active = active ,
+                onActiveChange = {
+                    active=it
+                },
+            placeholder = { Text(text = "Search") },
+            trailingIcon = {
+                if (active){
+                    IconButton(onClick = { if (text.isNotEmpty()) text="" else active = false }) {
+                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Close" )
+                    }
+                } else null
+            }
+            )
+            {
+
+            }
+        }
+    }
+}
 
 @Composable
 fun HomeScreen(
@@ -96,9 +194,9 @@ fun HeaderOrViewStory() {
                     bottomEnd = 30.dp
                 )
             )*/
-            .padding(start = 20.dp,top = 25.dp)
+            .padding(start = 20.dp, top = 25.dp)
     ) {
-        Searchbar()
+        Searchbar2()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
