@@ -1,15 +1,19 @@
 package com.example69.chatapp.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.navigation.activity
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example69.chatapp.MainActivity
 import com.example69.chatapp.ui.theme.Screens.ChatScreen
 import com.example69.chatapp.ui.theme.Screens.HomeScreen
 import com.example69.chatapp.ui.theme.Screens.LoginScreen
+import com.google.firebase.auth.FirebaseAuth
 
-@Composable
+/*@Composable
 fun MainNavigation(activity: MainActivity) {
 
     val navHostController = rememberNavController()
@@ -26,7 +30,38 @@ fun MainNavigation(activity: MainActivity) {
         }
     }
 
+}*/
+
+@Composable
+fun MainNavigation(activity: MainActivity) {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+
+    val userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
+
+    NavHost(navController = navController, startDestination = getStartDestination(userIsSignedIn)) {
+        composable(LOGIN_SCREEN) {
+            if (!userIsSignedIn || navBackStackEntry?.destination?.route == LOGIN_SCREEN) {
+                LoginScreen(navController,activity)
+            }
+        }
+        composable(HOME_SCREEN) {
+            if (userIsSignedIn) {
+                HomeScreen(navController)
+            }
+        }
+        composable(CHAT_SCREEN) {
+            if (userIsSignedIn) {
+                ChatScreen(navController)
+            }
+        }
+    }
 }
+
+private fun getStartDestination(userIsSignedIn: Boolean): String {
+    return if (userIsSignedIn) HOME_SCREEN else LOGIN_SCREEN
+}
+
 
 const val HOME_SCREEN = "Home screen"
 const val CHAT_SCREEN = "Chat screen"

@@ -52,6 +52,7 @@ import androidx.navigation.NavHostController
 import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.navigation.HOME_SCREEN
+import com.example69.chatapp.navigation.LOGIN_SCREEN
 import com.example69.chatapp.utils.ResultState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
@@ -233,7 +234,14 @@ fun LoginScreen(navHostController: NavHostController,
                                                 when(it){
                                                     is ResultState.Success->{
                                                         isDialog = false
-                                                        navHostController.navigate(HOME_SCREEN)
+                                                        navHostController.navigate(HOME_SCREEN){
+                                                            // Specify the destination to pop up to (the login screen)
+                                                            popUpTo(LOGIN_SCREEN) {
+                                                                inclusive = false // Set to false to exclude the login screen from the back stack
+                                                            }
+                                                            // Use launchSingleTop to ensure only one instance of the home screen is on the stack
+                                                            launchSingleTop = true
+                                                        }
                                                     }
                                                     is ResultState.Failure->{
                                                         isDialog = false
