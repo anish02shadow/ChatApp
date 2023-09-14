@@ -10,7 +10,9 @@ import androidx.compose.ui.Modifier
 import com.example69.chatapp.navigation.MainNavigation
 import com.example69.chatapp.ui.theme.ChatappTheme
 import com.example69.chatapp.ui.theme.Screens.HomeScreen
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,7 +23,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainNavigation()
+                    MainNavigation(this)
                 }
             }
         }

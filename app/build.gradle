@@ -84,7 +84,7 @@ dependencies {
     kapt "com.google.dagger:hilt-compiler:$hilt_version"
 
     //hilt viewmodel
-    implementation 'androidx.hilt:hilt-lifecycle-viewmodel:1.0.0-alpha03'
+    //implementation 'androidx.hilt:hilt-lifecycle-viewmodel:1.0.0-alpha03'
 
     //kotlin Coroutines
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutine_android"
@@ -103,4 +103,8 @@ dependencies {
 
     //otp view
     implementation "com.github.composeuisuite:ohteepee:1.0.2"
+
+    //Compose constraint layout
+    implementation "androidx.constraintlayout:constraintlayout-compose:1.0.1"
+    debugImplementation "androidx.compose.ui:ui-tooling:1.1.1"
 }
