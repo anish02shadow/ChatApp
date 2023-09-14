@@ -34,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import com.example69.chatapp.navigation.CHAT_SCREEN
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,7 +123,7 @@ fun Searchbar2() {
             placeholder = { Text(text = "Search") },
             trailingIcon = {
                 if (active){
-                    IconButton(onClick = { if (text.isNotEmpty()) text="" else active = false }) {
+                    IconButton(onClick = { if (text != "") text="" else active = false }) {
                         Icon(imageVector = Icons.Filled.Close, contentDescription = "Close" )
                     }
                 } else null
@@ -136,6 +138,7 @@ fun Searchbar2() {
 
 @Composable
 fun HomeScreen(
+    navHostController: NavHostController
 ) {
     Box(
         modifier = Modifier
@@ -167,7 +170,7 @@ fun HomeScreen(
                 ) {
                     items(7, key = null ) {
                         UserEachRow() {
-                            //navHostController.navigate(to the next screen)
+                            navHostController.navigate(CHAT_SCREEN)
                         }
                     }
                 }
@@ -398,7 +401,7 @@ fun Header() {
 
 }
 
-@SuppressLint("UnnecessaryComposedModifier")
+@SuppressLint("UnnecessaryComposedModifier", "ModifierFactoryUnreferencedReceiver")
 fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
     clickable(
         interactionSource = MutableInteractionSource(),

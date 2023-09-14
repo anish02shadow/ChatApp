@@ -2,6 +2,9 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-parcelize'
+    id("com.google.gms.google-services")
+    id 'kotlin-kapt'
+    id 'dagger.hilt.android.plugin'
 }
 
 android {
@@ -65,5 +68,39 @@ dependencies {
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+
     implementation "androidx.navigation:navigation-compose:2.6.0"
+
+    //Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.2.3"))
+    implementation 'com.google.firebase:firebase-analytics-ktx'
+    implementation 'com.google.firebase:firebase-database-ktx'
+    implementation 'com.google.firebase:firebase-firestore-ktx'
+    implementation 'com.google.firebase:firebase-auth-ktx'
+
+    //dagger hilt
+    implementation "com.google.dagger:hilt-android:$hilt_version"
+    implementation "androidx.hilt:hilt-navigation-compose:1.0.0"
+    kapt "com.google.dagger:hilt-compiler:$hilt_version"
+
+    //hilt viewmodel
+    implementation 'androidx.hilt:hilt-lifecycle-viewmodel:1.0.0-alpha03'
+
+    //kotlin Coroutines
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutine_android"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutine_core"
+
+    // ViewModel
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version"
+
+    // LiveData
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version"
+
+    //ViewModels
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.5.1"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-savedstate:2.5.1"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1"
+
+    //otp view
+    implementation "com.github.composeuisuite:ohteepee:1.0.2"
 }
