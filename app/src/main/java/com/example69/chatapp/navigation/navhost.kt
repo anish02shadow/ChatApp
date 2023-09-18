@@ -11,6 +11,7 @@ import com.example69.chatapp.MainActivity
 import com.example69.chatapp.ui.theme.Screens.ChatScreen
 import com.example69.chatapp.ui.theme.Screens.HomeScreen
 import com.example69.chatapp.ui.theme.Screens.LoginScreen
+import com.example69.chatapp.ui.theme.Screens.SignUpScreen
 import com.google.firebase.auth.FirebaseAuth
 
 /*@Composable
@@ -39,7 +40,10 @@ fun MainNavigation(activity: MainActivity) {
 
     val userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
 
-    NavHost(navController = navController, startDestination = getStartDestination(userIsSignedIn)) {
+    NavHost(navController = navController,
+        startDestination = getStartDestination(userIsSignedIn)
+        //startDestination = SIGNUP_SCREEN
+    ) {
         composable(LOGIN_SCREEN) {
             if (!userIsSignedIn || navBackStackEntry?.destination?.route == LOGIN_SCREEN) {
                 LoginScreen(navController,activity)
@@ -55,6 +59,9 @@ fun MainNavigation(activity: MainActivity) {
                 ChatScreen(navController)
             }
         }
+        composable(SIGNUP_SCREEN){
+            SignUpScreen(navHostController = navController , activity = activity)
+        }
     }
 }
 
@@ -66,3 +73,4 @@ private fun getStartDestination(userIsSignedIn: Boolean): String {
 const val HOME_SCREEN = "Home screen"
 const val CHAT_SCREEN = "Chat screen"
 const val LOGIN_SCREEN = "lOGIN screen"
+const val SIGNUP_SCREEN = "Signup Screen"

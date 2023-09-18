@@ -53,10 +53,14 @@ import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.example69.chatapp.navigation.LOGIN_SCREEN
+import com.example69.chatapp.navigation.SIGNUP_SCREEN
 import com.example69.chatapp.utils.ResultState
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 
 @Composable
@@ -197,6 +201,7 @@ fun LoginScreen(navHostController: NavHostController,
                                                             "MyTag",
                                                             "An error occurred: ${phoneState}"
                                                         )
+                                                        Log.e("MyTag", "An error occurred: ${it}")
                                                     }
 
                                                     ResultState.Loading -> {
@@ -233,8 +238,9 @@ fun LoginScreen(navHostController: NavHostController,
                                             ).collect{
                                                 when(it){
                                                     is ResultState.Success->{
+                                                        storePhoneNumber(phoneState)
                                                         isDialog = false
-                                                        navHostController.navigate(HOME_SCREEN){
+                                                        navHostController.navigate(SIGNUP_SCREEN){
                                                             // Specify the destination to pop up to (the login screen)
                                                             popUpTo(LOGIN_SCREEN) {
                                                                 inclusive = false // Set to false to exclude the login screen from the back stack
@@ -394,5 +400,26 @@ fun HeaderView() {
                 letterSpacing = 2.sp
             )
         )
+    }
+}
+
+// Function to store the user's phone number on registration
+suspend fun storePhoneNumber(phoneNumber: String) {
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+    val db = FirebaseFirestore.getInstance()
+    val userRef = db.collection("users").document(uid.toString())
+
+    // Create a map with the phone number data
+    val data = hashMapOf(
+        "phone_number" to phoneNumber
+    )
+
+    try {
+        // Set the data in Firestore
+        userRef.set(data, /* SetOptions */).await()
+    } catch (e: Exception) {
+        // Handle any errors here
+         Log.e("STORE", "Error storing phone number: $e")
     }
 }

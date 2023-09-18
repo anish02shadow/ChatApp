@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example69.chatapp.navigation.CHAT_SCREEN
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -256,7 +257,7 @@ fun UserEachRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(White)
-            .noRippleEffect { onClick() }
+            .noRippleEffect { signOut() }
             .padding(horizontal = 20.dp, vertical = 5.dp),
     ) {
         Column {
@@ -401,6 +402,12 @@ fun Header() {
 
 }
 
+
+// Function to sign out the user
+fun signOut() {
+    val auth = FirebaseAuth.getInstance()
+    auth.signOut()
+}
 @SuppressLint("UnnecessaryComposedModifier", "ModifierFactoryUnreferencedReceiver")
 fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
     clickable(
