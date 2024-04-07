@@ -20,4 +20,15 @@ interface AuthRepository {
         otp:String
     ): Flow<ResultState<String>>
 
+    fun createUserWithEmail(
+        email: String,
+        password: String,
+        activity: Activity
+    ) : Flow<ResultState<String>>
+
+    fun signInWithEmail(
+        email: String,
+        password: String,
+        activity: Activity
+    ): Flow<ResultState<String>>
 }

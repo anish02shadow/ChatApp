@@ -20,4 +20,16 @@ class AuthViewModel @Inject constructor(
         code:String
     ) = repo.signWithCredential(code)
 
+    fun createUserWithEmail(
+        email: String,
+        password: String,
+        activity: Activity
+    ) = repo.createUserWithEmail(email, password, activity)
+
+    fun signInWithEmail(
+        email: String,
+        password: String,
+        activity: Activity
+    ) = repo.signInWithEmail(email, password, activity)
+
 }

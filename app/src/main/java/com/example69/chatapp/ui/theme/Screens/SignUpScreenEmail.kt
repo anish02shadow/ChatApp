@@ -50,9 +50,9 @@ import kotlinx.coroutines.tasks.await
 
 
 @Composable
-fun SignUpScreen(navHostController: NavHostController,
-                activity: Activity,
-                viewModel: AuthViewModel = hiltViewModel()) {
+fun SignUpScreenEmail(navHostController: NavHostController,
+                 activity: Activity,
+                 viewModel: AuthViewModel = hiltViewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -107,7 +107,7 @@ fun SignUpScreen(navHostController: NavHostController,
                 CustomStyleTextFieldSignUp(
                     height = 50,
                     textState = nameState,
-                    "Enter your name",
+                    "Enter your email",
                     R.drawable.baseline_phone_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
@@ -117,7 +117,7 @@ fun SignUpScreen(navHostController: NavHostController,
                 )
 
                 Text(
-                    text = "Bio",
+                    text = "Password",
                     style = MaterialTheme.typography.labelLarge.copy(Color(0xFF4B4F5A)),
                     modifier = Modifier.padding(bottom = 10.dp, top = 10.dp)
                 )
@@ -125,7 +125,7 @@ fun SignUpScreen(navHostController: NavHostController,
                 CustomStyleTextFieldSignUp(
                     height= 150,
                     textState = bioState,
-                    "Enter your Bio",
+                    "Enter your Password",
                     R.drawable.baseline_phone_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
@@ -169,110 +169,4 @@ fun SignUpScreen(navHostController: NavHostController,
 
 
 
-@Composable
-fun ProfileImage(){
-    var imageUri by remember {
-        mutableStateOf("")
-    }
-    var painter = rememberAsyncImagePainter(
-        if(imageUri.isEmpty()){
-            R.drawable.mic
-        }
-        else{
-            imageUri
-        }
-    )
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            // User selected an image, update the imageUri
-            imageUri = uri.toString()
-        }
-    }
-
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally) {
-        Card(
-            modifier = Modifier
-                .padding(8.dp)
-                .size(100.dp),
-            shape = CircleShape,
-        ) {
-            Image(painter = painter, contentDescription = "Profile Pic",
-                modifier = Modifier
-                    .clickable {
-                        launcher.launch("image/*")
-                    },
-                contentScale = ContentScale.FillHeight
-            )
-        }
-
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CustomStyleTextFieldSignUp(
-    height: Int,
-    textState: String,
-    placeHolder: String,
-    leadingIconId: Int,
-    keyboardType: KeyboardType,
-    visualTransformation: VisualTransformation,
-    onTextChange: (String) -> Unit // Callback function for text changes
-) {
-
-    OutlinedTextField(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height.dp)
-            .background(Color.White),
-        value = textState,
-        onValueChange = { valueChanged ->
-            //textState = valueChanged // Update the local state
-            onTextChange(valueChanged) // Call the callback function to update external state
-        },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        placeholder = { Text(text = placeHolder) },
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            focusedBorderColor = Color(0xFF1BA57B),
-            unfocusedBorderColor = Color.Transparent,
-            focusedLabelColor = Color.White,
-            //trailingIconColor = Color.White,
-//            disabledTextColor = NaviBlue
-        ),
-        shape = RoundedCornerShape(10.dp),
-        textStyle = TextStyle(color = Color.Black, fontSize = 16.sp),
-        visualTransformation = visualTransformation
-    )
-}
-
-// Function to update the user's name and bio
-suspend fun updateNameAndBio(name: String, bio: String) {
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid
-
-    if (uid != null) {
-        val db = FirebaseFirestore.getInstance()
-        val userRef = db.collection("users").document(uid)
-
-        // Create a map with the updated data
-        val data = hashMapOf(
-            "name" to name,
-            "bio" to bio
-        )
-
-        try {
-            // Update the data in Firestore
-            userRef.update(data as Map<String, String>).await()
-        } catch (e: Exception) {
-            // Handle any errors here
-           Log.e("STORE", "Error updating name and bio: $e")
-        }
-    }
-}
 
