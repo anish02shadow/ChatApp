@@ -44,8 +44,8 @@ import kotlinx.coroutines.launch
 
 
 @Composable
-fun CreateAccountScrrenEmail(navHostController: NavHostController,
-                activity: Activity,
+fun CreateAccountScreenEmail(
+                activity: Activity, onNavigateToHome: ()->Unit = {},
                 viewModel: AuthViewModel = hiltViewModel()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -95,8 +95,8 @@ fun CreateAccountScrrenEmail(navHostController: NavHostController,
                                 }
                             }
 
-                            val loginText = "Log in to your account."
-                            val loginWord = "Log in"
+                            val loginText = "Create your account"
+                            val loginWord = "Create"
                             val loginAnnotatedString = buildAnnotatedString {
                                 append(loginText)
                                 addStyle(
@@ -133,7 +133,7 @@ fun CreateAccountScrrenEmail(navHostController: NavHostController,
                                 textState = phoneState,
                                 "Enter Email",
                                 com.example69.chatapp.R.drawable.baseline_phone_24,
-                                KeyboardType.Phone,
+                                KeyboardType.Email,
                                 VisualTransformation.None,
                                 onTextChange = {newText->
                                     phoneState = newText
@@ -176,14 +176,7 @@ fun CreateAccountScrrenEmail(navHostController: NavHostController,
                                                         Log.e("STORE", "SUCESSS USER EMAIL WOHOOOHOH")
                                                         storePhoneNumber(phoneState)
                                                         isDialog = false
-                                                        navHostController.navigate(SIGNUP_SCREEN){
-                                                            // Specify the destination to pop up to (the login screen)
-                                                            popUpTo(LOGIN_SCREEN) {
-                                                                inclusive = false // Set to false to exclude the login screen from the back stack
-                                                            }
-                                                            // Use launchSingleTop to ensure only one instance of the home screen is on the stack
-                                                            launchSingleTop = true
-                                                        }
+                                                        onNavigateToHome
                                                     }
                                                     is ResultState.Failure->{
                                                         isDialog = false
@@ -215,8 +208,8 @@ fun CreateAccountScrrenEmail(navHostController: NavHostController,
                                 }
                             }
 
-                            val signInText = "Don't have an account? Sign In"
-                            val signInWord = "Sign In"
+                            val signInText = "Already have an Account? Press Back"
+                            val signInWord = "Press Back"
                             val signInAnnotatedString = buildAnnotatedString {
                                 append(signInText)
                                 addStyle(

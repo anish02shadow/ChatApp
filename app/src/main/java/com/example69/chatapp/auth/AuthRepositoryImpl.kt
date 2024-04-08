@@ -3,20 +3,15 @@ package com.example69.chatapp.auth
 import android.app.Activity
 import android.content.ContentValues.TAG
 import android.util.Log
-import android.widget.Toast
 import com.example69.chatapp.utils.ResultState
 import com.google.firebase.FirebaseException
-import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import okhttp3.internal.concurrent.Task
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -42,6 +37,7 @@ class AuthRepositoryImpl @Inject constructor(
 
 
                 } else {
+                    trySend(ResultState.Failure("Failed to Sign In Wrong credentials maybe"))
                     // If sign in fails, display a message to the user.
                     Log.w(TAG, "signInWithEmail:failure", task.exception)
 
@@ -85,7 +81,7 @@ class AuthRepositoryImpl @Inject constructor(
             }
 
             override fun onVerificationFailed(p0: FirebaseException) {
-                trySend(ResultState.Failure(p0))
+                trySend(ResultState.Failure("Failed to verify"))
             }
 
             override fun onCodeSent(verificationCode: String, p1: PhoneAuthProvider.ForceResendingToken) {
@@ -117,7 +113,7 @@ class AuthRepositoryImpl @Inject constructor(
                 if(it.isSuccessful)
                     trySend(ResultState.Success("otp verified"))
             }.addOnFailureListener {
-                trySend(ResultState.Failure(it))
+                trySend(ResultState.Failure("Failed to sign in"))
             }
         awaitClose {
             close()

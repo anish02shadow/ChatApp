@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
-
+import android.view.View.OnKeyListener
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -43,6 +43,8 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
+import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -51,157 +53,328 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.Blue
+import androidx.compose.ui.graphics.Color.Companion.Green
+import androidx.compose.ui.graphics.Color.Companion.LightGray
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.zIndex
+import com.example69.chatapp.R
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Searchbar2() {
+fun Searchbar2(updatePopUp: (Boolean) -> Unit) {
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
             .padding(2.dp, end = 10.dp)
             .fillMaxWidth()
     ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search Bar",
-            tint = Color.Black,
-            modifier = Modifier
-                .size(34.dp)
-                .padding(end = 8.dp)
-                .clickable {
-                    isSearchVisible = !isSearchVisible
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            //modifier = Modifier.fillMaxWidth()
+        ){
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search Bar",
+                tint = Color.Black,
+                modifier = Modifier
+                    .size(34.dp)
+                    .padding(end = 8.dp)
+                    .clickable {
+                        isSearchVisible = !isSearchVisible
+                    }
+            )
+
+            AnimatedVisibility(
+                visible = !isSearchVisible,
+                enter = fadeIn() + slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    )
+                ),
+                exit = fadeOut() + slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            ) {
+                Text(
+                    text = "MoodChat",
+                    color = Color.Black,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isSearchVisible,
+                enter = fadeIn() + slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    )
+                ),
+                exit = fadeOut() + slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            ) {
+                var text by remember {
+                    mutableStateOf("")
                 }
+                var active by remember {
+                    mutableStateOf(false)
+                }
+
+
+                DockedSearchBar(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .height(50.dp),
+                    query = text,
+                    onQueryChange = {text=it},
+                    onSearch = {active=false } ,
+                    active = active ,
+                    onActiveChange = {
+                        active=it
+                    },
+                    placeholder = { Text(text = "Search") },
+                    trailingIcon = {
+                        if (active){
+                            IconButton(onClick = { if (text != "") text="" else active = false }) {
+                                Icon(imageVector = Icons.Filled.Close, contentDescription = "Close" )
+                            }
+                        } else null
+                    }
+                )
+                {
+
+                }
+            }
+        }
+        var Expanded by rememberSaveable {
+            mutableStateOf(false)
+        }
+        IconButton(onClick = { Expanded = true }) {
+            Icon(painter = painterResource(id = R.drawable.baseline_more_vert_24 ), contentDescription = "More Vert", tint = Black)
+            DropdownMenu(expanded = Expanded , onDismissRequest = { Expanded = false }) {
+                DropdownMenuItem(text = { Text("Add Friends") }, onClick = { updatePopUp(true) }, colors = MenuDefaults.itemColors(
+                    textColor = White))
+                DropdownMenuItem(text = { Text("Log Out") }, onClick = { FirebaseAuth.getInstance().signOut()
+                })
+            }
+        }
+        
+    }
+}
+
+@Composable
+fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit){
+
+    if(showPopUp){
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(White)
+                .zIndex(10F)
+                .clickable { updatePopUp(false) }
+                .clip(RoundedCornerShape(10.dp))
+                ,
+            contentAlignment = Center
+        ){
+            var emailState by remember { mutableStateOf("") }
+            CustomStyleTextField2(
+                updatePopUp = updatePopUp,
+                textState=emailState,
+                "Add Friend",
+                R.drawable.baseline_assignment_ind_24,
+                KeyboardType.Text,
+                onTextChange = {newText->
+                    emailState = newText
+                }
+            )
+        }
+
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomStyleTextField2(
+    updatePopUp: (Boolean) -> Unit,
+    textState: String,
+    placeHolder: String,
+    leadingIconId: Int,
+    keyboardType: KeyboardType,
+    onTextChange: (String) -> Unit // Callback function for text changes
+) {
+    var scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    OutlinedTextField(
+        modifier = Modifier
+            .fillMaxWidth(0.75f)
+            .background(Color.White)
+            .clip(RoundedCornerShape(10.dp))
+            .border(BorderStroke(0.5.dp, LightGray)),
+        value = textState,
+        onValueChange = { valueChanged ->
+            //textState = valueChanged // Update the local state
+            onTextChange(valueChanged) // Call the callback function to update external state
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
+        placeholder = { Text(text = placeHolder) },
+        leadingIcon = {
+            Row(
+                modifier = Modifier.wrapContentWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                content = {
+                    Image(
+                        modifier = Modifier
+                            .padding(start = 10.dp, end = 10.dp)
+                            .size(18.dp),
+                        painter = painterResource(id = leadingIconId),  // material icon
+                        colorFilter = ColorFilter.tint(Color(0xFF1BA57B)),
+                        contentDescription = "custom_text_field"
+                    )
+                    Canvas(
+                        modifier = Modifier.height(24.dp)
+                    ) {
+                        // Allows you to draw a line between two points (p1 & p2) on the canvas.
+                        drawLine(
+                            color = Color.LightGray,
+                            start = Offset(0f, 0f),
+                            end = Offset(0f, size.height),
+                            strokeWidth = 2.0F
+                        )
+                    }
+                }
+            )
+        },
+        colors = TextFieldDefaults.outlinedTextFieldColors(
+            focusedBorderColor = Color(0xFF1BA57B),
+            unfocusedBorderColor = Color.Transparent,
+            focusedLabelColor = Color.White,
+            //trailingIconColor = Color.White,
+//            disabledTextColor = NaviBlue
+        ),
+        shape = RoundedCornerShape(10.dp),
+        textStyle = TextStyle(color = Color.Black, fontSize = 16.sp),
+        keyboardActions = KeyboardActions(
+            onNext = {
+                scope.launch {
+                    addFriend(textState)
+                    val text = "Friend Request Sent!"
+                    val duration = Toast.LENGTH_SHORT
+
+                    val toast = Toast.makeText(context, text, duration) // in Activity
+                    toast.show()
+                    updatePopUp(false)
+                }
+            }
         )
 
-        AnimatedVisibility(
-            visible = !isSearchVisible,
-            enter = fadeIn() + slideInHorizontally(
-                initialOffsetX = { it },
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = FastOutSlowInEasing
-                )
-            ),
-            exit = fadeOut() + slideOutHorizontally(
-                targetOffsetX = { it },
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = FastOutSlowInEasing
-                )
-            )
-        ) {
-            Text(
-                text = "MoodChat",
-                color = Color.Black,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        AnimatedVisibility(
-            visible = isSearchVisible,
-            enter = fadeIn() + slideInHorizontally(
-                initialOffsetX = { it },
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = FastOutSlowInEasing
-                )
-            ),
-            exit = fadeOut() + slideOutHorizontally(
-                targetOffsetX = { it },
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = FastOutSlowInEasing
-                )
-            )
-        ) {
-            var text by remember {
-                mutableStateOf("")
-            }
-            var active by remember {
-                mutableStateOf(false)
-            }
-
-
-            DockedSearchBar(
-                modifier =Modifier.fillMaxWidth(0.9f).height(50.dp),
-                query = text,
-                onQueryChange = {text=it},
-                onSearch = {active=false } ,
-                active = active ,
-                onActiveChange = {
-                    active=it
-                },
-            placeholder = { Text(text = "Search") },
-            trailingIcon = {
-                if (active){
-                    IconButton(onClick = { if (text != "") text="" else active = false }) {
-                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Close" )
-                    }
-                } else null
-            }
-            )
-            {
-
-            }
-        }
-    }
+    )
 }
 
 @Composable
 fun HomeScreen(
     navHostController: NavHostController
 ) {
+    var showPopUp by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val scope = rememberCoroutineScope()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(White)
     ) {
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding()
         ) {
-            HeaderOrViewStory()
+            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal})
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(White)
-
-
+                    .background(color = White)
             ) {
-                Text(text = "Messages",
-                    color = Black,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.W300,
-                modifier = Modifier.padding(top= 5.dp, start = 20.dp))
-
-                LazyColumn(
-                    modifier = Modifier.padding(bottom = 15.dp, top = 35.dp)
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    items(7, key = null ) {
-                        UserEachRow() {
-                            navHostController.navigate(CHAT_SCREEN)
+                    Text(
+                        text = "Messages",
+                        color = Black,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.W300,
+                        modifier = Modifier.padding(top = 5.dp, start = 20.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(16.dp)
+                    ) {
+                        PopupBox(showPopUp = showPopUp, updatePopUp = {newVal -> showPopUp = newVal})
+                    }
+                    LazyColumn(
+                        modifier = Modifier.padding(bottom = 15.dp)
+                    ) {
+                        items(7, key = null) {
+                            UserEachRow {
+                                navHostController.navigate(CHAT_SCREEN)
+                            }
                         }
                     }
                 }
@@ -213,12 +386,12 @@ fun HomeScreen(
 }
 
 @Composable
-fun HeaderOrViewStory() {
+fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(White)
-/*            .border(
+            /*            .border(
                 width = 1.dp,
                 color = Gray,
                 shape = RoundedCornerShape(
@@ -230,7 +403,8 @@ fun HeaderOrViewStory() {
             )*/
             .padding(start = 20.dp, top = 25.dp)
     ) {
-        Searchbar2()
+        Searchbar2(updatePopUp)
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -446,4 +620,38 @@ fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
         onClick()
     }
 }
+
+suspend fun addFriend(email: String) {
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+    if (uid != null) {
+        val db = FirebaseFirestore.getInstance()
+        val userRef = db.collection("users").document(uid).collection("Friends")
+
+
+
+        val data = hashMapOf(
+            "Email" to email
+        )
+
+        try {
+            // Set the data in Firestore
+            userRef.add(data, /* SetOptions */).await()
+        } catch (e: Exception) {
+            // Handle any errors here
+            Log.e("STORE", "Error storing Email number: $e")
+        }
+
+//        userRef2.collection("Friends")
+//            .add(email)
+//            .addOnSuccessListener { documentReference ->
+//                Log.d("STORE", "DocumentSnapshot added with ID: ${documentReference.id}")
+//            }
+//            .addOnFailureListener { e ->
+//                Log.w("STORE", "Error adding document", e)
+//            }
+//    }
+    }
+}
+
 

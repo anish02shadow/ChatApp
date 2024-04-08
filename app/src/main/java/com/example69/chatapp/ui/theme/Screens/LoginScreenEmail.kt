@@ -4,6 +4,8 @@ package com.example69.chatapp.ui.theme.Screens
 
 import android.app.Activity
 import android.util.Log
+import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -48,7 +51,9 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreenEmail(navHostController: NavHostController,
+                     onNavigateToHome: ()->Unit = {},
                 activity: Activity,
+                     onNavigateToCreateAccount: ()->Unit = {},
                 viewModel: AuthViewModel = hiltViewModel()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -136,7 +141,7 @@ fun LoginScreenEmail(navHostController: NavHostController,
                                 textState = phoneState,
                                 "Enter Email",
                                 com.example69.chatapp.R.drawable.baseline_phone_24,
-                                KeyboardType.Phone,
+                                KeyboardType.Email,
                                 VisualTransformation.None,
                                 onTextChange = {newText->
                                     phoneState = newText
@@ -165,6 +170,7 @@ fun LoginScreenEmail(navHostController: NavHostController,
                             var isButtonVisible by remember { mutableStateOf(true) }
 
                             if (isButtonVisible) {
+                                val context = LocalContext.current
                                 Button(
                                     onClick = {
                                         scope.launch(Dispatchers.Main) {
@@ -179,16 +185,16 @@ fun LoginScreenEmail(navHostController: NavHostController,
                                                         Log.e("STORE", "SUCESSS  EMAIL SIGNinnn aahahah")
                                                         storePhoneNumber(phoneState)
                                                         isDialog = false
-                                                        navHostController.navigate(HOME_SCREEN){
-                                                            // Specify the destination to pop up to (the login screen)
-                                                            popUpTo(LOGIN_SCREEN) {
-                                                                inclusive = false // Set to false to exclude the login screen from the back stack
-                                                            }
-                                                            // Use launchSingleTop to ensure only one instance of the home screen is on the stack
-                                                            launchSingleTop = true
-                                                        }
+                                                        Log.e("STORE", "cALLING Naviagte Home")
+                                                        onNavigateToHome()
                                                     }
                                                     is ResultState.Failure->{
+                                                        Log.e("STORE", "FAILIUREEE EMAILL")
+                                                        val text = "Invalid Credentials!!"
+                                                        val duration = Toast.LENGTH_SHORT
+
+                                                        val toast = Toast.makeText(context, text, duration) // in Activity
+                                                        toast.show()
                                                         isDialog = false
                                                     }
                                                     ResultState.Loading->{
@@ -218,8 +224,8 @@ fun LoginScreenEmail(navHostController: NavHostController,
                                 }
                             }
 
-                            val signInText = "Don't have an account? Sign In"
-                            val signInWord = "Sign In"
+                            val signInText = "Don't have an account? Sign Up"
+                            val signInWord = "Sign Up"
                             val signInAnnotatedString = buildAnnotatedString {
                                 append(signInText)
                                 addStyle(
@@ -239,7 +245,8 @@ fun LoginScreenEmail(navHostController: NavHostController,
                             }
 
                             Text(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable { onNavigateToCreateAccount() },
                                 text = signInAnnotatedString,
                                 style = TextStyle(
                                     fontSize = 14.sp
