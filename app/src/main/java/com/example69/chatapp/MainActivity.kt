@@ -9,10 +9,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.datastore.core.DataStore
+import androidx.lifecycle.viewmodel.compose.viewModel
+
 import com.example69.chatapp.navigation.MainNavigation
 import com.example69.chatapp.ui.theme.ChatappTheme
 import com.example69.chatapp.ui.theme.Screens.HomeScreen
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.prefs.Preferences
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -27,6 +31,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
+                        // At the top level of your kotlin file:
                         MainNavigation(this)
                     }
                 }

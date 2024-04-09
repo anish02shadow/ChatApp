@@ -50,10 +50,10 @@ import kotlinx.coroutines.launch
 
 
 @Composable
-fun LoginScreenEmail(navHostController: NavHostController,
-                     onNavigateToHome: ()->Unit = {},
+fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                 activity: Activity,
                      onNavigateToCreateAccount: ()->Unit = {},
+                     onEmailChange:(String) ->Unit,
                 viewModel: AuthViewModel = hiltViewModel()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -184,6 +184,7 @@ fun LoginScreenEmail(navHostController: NavHostController,
                                                     is ResultState.Success->{
                                                         Log.e("STORE", "SUCESSS  EMAIL SIGNinnn aahahah")
                                                         storePhoneNumber(phoneState)
+                                                        onEmailChange(phoneState)
                                                         isDialog = false
                                                         Log.e("STORE", "cALLING Naviagte Home")
                                                         onNavigateToHome()

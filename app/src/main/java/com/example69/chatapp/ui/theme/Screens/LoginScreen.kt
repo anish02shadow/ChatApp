@@ -403,23 +403,17 @@ fun HeaderView() {
     }
 }
 
-// Function to store the user's phone number on registration
-suspend fun storePhoneNumber(phoneNumber: String) {
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid
+suspend fun storePhoneNumber(Email: String) {
     val db = FirebaseFirestore.getInstance()
-    val userRef = db.collection("users").document(uid.toString())
+    val userRef = db.collection("users").document(Email)
 
-    // Create a map with the phone number data
     val data = hashMapOf(
-        "phone_number" to phoneNumber
+        "Email" to Email
     )
 
     try {
-        // Set the data in Firestore
-        userRef.set(data, /* SetOptions */).await()
+        userRef.set(data).await()
     } catch (e: Exception) {
-        // Handle any errors here
          Log.e("STORE", "Error storing phone number: $e")
     }
 }

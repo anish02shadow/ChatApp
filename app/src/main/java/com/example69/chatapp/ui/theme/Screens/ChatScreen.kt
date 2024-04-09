@@ -1,10 +1,17 @@
 package com.example69.chatapp.ui.theme.Screens
 
+import android.os.Build
+import android.util.Log
 import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
@@ -30,17 +37,48 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.core.DataStore
 import androidx.navigation.NavHostController
 import com.example69.chatapp.R
+import com.example69.chatapp.data.Message
+import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.ui.theme.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
 
 
 @Composable
 fun ChatScreen(
-    navHostController: NavHostController
+    email: String,
+    messages: Flow<List<Message>>
 ) {
 
+    val lazyListState = rememberLazyListState()
     var message by remember { mutableStateOf("") }
+
+    var Messages by remember { mutableStateOf(emptyList<Message>()) }
+
+    LaunchedEffect(messages) {
+        val job = launch {
+            messages.collect { newMessages ->
+                Messages = newMessages
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -51,7 +89,8 @@ fun ChatScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             UserNameRow(
-                modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp)
+                modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp),
+                name = email
             )
             Box(
                 modifier = Modifier
@@ -64,20 +103,22 @@ fun ChatScreen(
                     .padding(top = 25.dp)
 
             ) {
-                LazyColumn(
-                    modifier = Modifier.padding(
-                        start = 15.dp,
-                        top = 25.dp,
-                        end = 15.dp,
-                        bottom = 75.dp
-                    )
-                ) {
-                    items(3, key = null) {
-                        ChatRow(direction = false,message="Hey!", time = "12:24")
-                        ChatRow(direction = false,message="How are you doing?",time="12:25")
-                        ChatRow(direction = true,message="I am fine, wbu?", time = "12:25")
-                    }
-                }
+
+                    MessagesList(messages = Messages,lazyListState)
+//                LazyColumn(
+//                    modifier = Modifier.padding(
+//                        start = 15.dp,
+//                        top = 25.dp,
+//                        end = 15.dp,
+//                        bottom = 75.dp
+//                    )
+//                ) {
+//                    items(3, key = null) {
+//                        ChatRow(direction = false,message="Hey!", time = "12:24")
+//                        ChatRow(direction = false,message="How are you doing?",time="12:25")
+//                        ChatRow(direction = true,message="I am fine, wbu?", time = "12:25")
+//                    }
+//                }
             }
         }
 
@@ -92,12 +133,31 @@ fun ChatScreen(
 }
 
 @Composable
+fun MessagesList(messages: List<Message>,lazyListState: LazyListState = rememberLazyListState()) {
+    LazyColumn(
+        state = lazyListState,
+        modifier = Modifier.padding(
+            start = 15.dp,
+            top = 25.dp,
+            end = 15.dp,
+            bottom = 75.dp
+        )
+    ) {
+        items(messages, key = { it.timestamp }) { message ->
+        ChatRow(
+            direction = false,
+            message = message.message,
+            time = formatTimestamp(message.timestamp)
+        )
+    }
+    }
+}
+@Composable
 fun ChatRow(
     direction: Boolean,
     message: String,
     time: String
 ) {
-
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (direction) Alignment.Start else Alignment.End
@@ -120,7 +180,7 @@ fun ChatRow(
             )
         }
         Text(
-            text = time.toString(),
+            text = time,
             style = TextStyle(
                 color = Gray,
                 fontSize = 12.sp
@@ -149,11 +209,16 @@ fun CustomTextField(
                 ),
                 textAlign = TextAlign.Center
             )
-        },
-        colors = TextFieldDefaults.textFieldColors(
-            containerColor = Gray400,
+        }
+        ,
+        maxLines = 3,
+        colors = TextFieldDefaults.colors(
+            focusedTextColor = Color.Black,
+            focusedContainerColor = Gray400,
+            unfocusedContainerColor = Gray400,
+            disabledContainerColor = Gray400,
+            focusedIndicatorColor = Color.DarkGray,
             unfocusedIndicatorColor = Color.Transparent,
-            focusedIndicatorColor = Color.Transparent
         ),
         leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
         trailingIcon = { CommonIconButtonDrawable(R.drawable.mic) },
@@ -167,11 +232,11 @@ fun CustomTextField(
 fun CommonIconButton(
     imageVector: ImageVector
 ) {
-
     Box(
         modifier = Modifier
             .background(Yellow, CircleShape)
-            .size(33.dp), contentAlignment = Center
+            .size(33.dp)
+            .clickable { }, contentAlignment = Center
     ) {
         Icon(imageVector = imageVector, contentDescription ="Icon", modifier = Modifier.size(15.dp), tint = Color.Black )
     }
@@ -186,7 +251,8 @@ fun CommonIconButtonDrawable(
     Box(
         modifier = Modifier
             .background(Yellow, CircleShape)
-            .size(33.dp), contentAlignment = Center
+            .size(33.dp)
+            .clickable { }, contentAlignment = Center
     ) {
         Icon(
             painter = painterResource(id = icon), contentDescription = "",
@@ -199,7 +265,8 @@ fun CommonIconButtonDrawable(
 
 @Composable
 fun UserNameRow(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    name: String
 ) {
 
     Row(
@@ -216,7 +283,7 @@ fun UserNameRow(
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = "Anish", style = TextStyle(
+                    text = name, style = TextStyle(
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
@@ -238,4 +305,112 @@ fun UserNameRow(
                 .size(24.dp))
     }
 
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+suspend fun addChat(text: String,email: String){
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+
+    if (uid != null) {
+        val db = FirebaseFirestore.getInstance()
+        val userRef = db.collection("users").document(email).collection("Messages").document()
+
+//        val currentDateTime: java.util.Date = java.util.Date()
+//        val currentTimestamp: Long = currentDateTime.time
+//
+//        val formatter = DateTimeFormatter.ofPattern("YYYY:MM:DD:HH:mm:ss")
+//        val current = LocalDateTime.now().format(formatter)
+
+        val data = hashMapOf(
+            "message" to text,
+            "timestamp" to FieldValue.serverTimestamp()
+        )
+
+        try {
+            userRef.set(data).await()
+        } catch (e: Exception) {
+            Log.e("STORE", "Error storing message $e")
+        }
+
+    }
+}
+
+@Suppress("EXPERIMENTAL_API_USAGE")
+fun retrieveMessages(email: String): Flow<List<Message>> = callbackFlow {
+    val userRef = FirebaseFirestore.getInstance().collection("users").document(email).collection("Messages")
+    val snapshotListener = userRef.orderBy("timestamp", Query.Direction.ASCENDING)
+        .addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                this.trySend(emptyList())
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val messages = snapshot.documents.map { document ->
+                    val message = document.getString("message") ?: ""
+                    val timestamp = document.getTimestamp("timestamp")?.toDate()?.time ?: 0L
+                    Message(message, timestamp, false)
+                }
+                this.trySend(messages)
+            }
+        }
+
+    awaitClose {
+        snapshotListener.remove()
+    }
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    val date = Date(timestamp)
+    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
+    return format.format(date)
+}
+
+
+@Suppress("EXPERIMENTAL_API_USAGE")
+fun getFriendsEmails(userEmail: String,dataStore: StoreUserEmail): Flow<List<String>> = callbackFlow {
+    val emaill = dataStore.getEmail.first()
+    Log.d("STORE", "Fetched ${emaill} emailllllll getFriendsEmail")
+    val userRef = FirebaseFirestore.getInstance().collection("users").document(emaill).collection("Friends")
+
+    val snapshotListener = userRef.addSnapshotListener { snapshot, error ->
+        if (error != null) {
+            this.trySend(emptyList())
+            return@addSnapshotListener
+        }
+
+        if (snapshot != null) {
+            val friendEmails = snapshot.documents.mapNotNull { document ->
+                document.getString("Email")
+            }
+            Log.d("STORE", "Fetched ${friendEmails.size} friends")
+            this.trySend(friendEmails)
+        }
+    }
+
+    awaitClose {
+        Log.d("STORE", "Closing snapshot listener")
+        snapshotListener.remove()
+    }
+}
+
+suspend fun getFriends(email: String){
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+
+    if (uid != null) {
+        val db = FirebaseFirestore.getInstance()
+        val userRef = db.collection("users").document(email).collection("Friends")
+
+        userRef.get()
+            .addOnSuccessListener { result ->
+                for (document in result) {
+                    Log.d("STORE", "${document.id} => ${document.data}")
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.d("STORE", "Error getting documents: ", exception)
+            }
+    }
 }

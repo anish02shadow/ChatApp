@@ -3,14 +3,12 @@ package com.example69.chatapp.ui.theme.Screens
 import android.annotation.SuppressLint
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
-import android.view.View.OnKeyListener
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -21,7 +19,7 @@ import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.graphics.Color.Companion.Black
 import androidx.compose.ui.graphics.Color.Companion.DarkGray
 import androidx.compose.ui.graphics.Color.Companion.Gray
@@ -38,30 +36,20 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example69.chatapp.navigation.CHAT_SCREEN
 import com.google.firebase.auth.FirebaseAuth
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -77,28 +65,25 @@ import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Blue
-import androidx.compose.ui.graphics.Color.Companion.Green
 import androidx.compose.ui.graphics.Color.Companion.LightGray
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import com.example69.chatapp.R
+import com.example69.chatapp.data.StoreUserEmail
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Searchbar2(updatePopUp: (Boolean) -> Unit) {
+fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit) {
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
 
@@ -174,7 +159,6 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit) {
                     mutableStateOf(false)
                 }
 
-
                 DockedSearchBar(
                     modifier = Modifier
                         .fillMaxWidth(0.9f)
@@ -209,6 +193,7 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit) {
                 DropdownMenuItem(text = { Text("Add Friends") }, onClick = { updatePopUp(true) }, colors = MenuDefaults.itemColors(
                     textColor = White))
                 DropdownMenuItem(text = { Text("Log Out") }, onClick = { FirebaseAuth.getInstance().signOut()
+                    onLogOutPress()
                 })
             }
         }
@@ -217,8 +202,8 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit) {
 }
 
 @Composable
-fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit){
-
+fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit, email: String, dataStore: StoreUserEmail){
+    Log.e("STORE","$email is EMAIL IN PopUpBox which csalls CustomTrxtField2")
     if(showPopUp){
         Box(
             modifier = Modifier
@@ -233,6 +218,8 @@ fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit){
             var emailState by remember { mutableStateOf("") }
             CustomStyleTextField2(
                 updatePopUp = updatePopUp,
+                email = email,
+                dataStore = dataStore,
                 textState=emailState,
                 "Add Friend",
                 R.drawable.baseline_assignment_ind_24,
@@ -242,7 +229,6 @@ fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit){
                 }
             )
         }
-
     }
 }
 
@@ -250,6 +236,8 @@ fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit){
 @Composable
 fun CustomStyleTextField2(
     updatePopUp: (Boolean) -> Unit,
+    email: String,
+    dataStore: StoreUserEmail,
     textState: String,
     placeHolder: String,
     leadingIconId: Int,
@@ -310,7 +298,8 @@ fun CustomStyleTextField2(
         keyboardActions = KeyboardActions(
             onNext = {
                 scope.launch {
-                    addFriend(textState)
+                    Log.e("STORE","$email is EMAIL IN CustomTextFielf which csalls addFriend, $dataStore")
+                    addFriend(email, textState,dataStore = dataStore)
                     val text = "Friend Request Sent!"
                     val duration = Toast.LENGTH_SHORT
 
@@ -326,13 +315,38 @@ fun CustomStyleTextField2(
 
 @Composable
 fun HomeScreen(
-    navHostController: NavHostController
+    onLogOutPress:() ->Unit = {},
+    friends: Flow<List<String>>,
+    email2: String,
+    dataStore: StoreUserEmail
+
 ) {
+
+    val emailState = remember { mutableStateOf("") }
+    val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
+    val savedEmail by savedEmailState
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(emailState) {
+        val email = dataStore.getEmail.first()
+        emailState.value = email ?: ""
+        Log.e("STORE", "${emailState.value} is EmailState.Value launched effectoo")
+    }
+
+
     var showPopUp by rememberSaveable {
         mutableStateOf(false)
     }
 
-    val scope = rememberCoroutineScope()
+    var friendsEmails by remember { mutableStateOf(emptyList<String>()) }
+
+    LaunchedEffect(friends) {
+        val job = launch {
+            friends.collect { newFriendsEmails ->
+                friendsEmails = newFriendsEmails
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -344,7 +358,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding()
         ) {
-            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal})
+            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal}, onLogOutPress)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -366,15 +380,18 @@ fun HomeScreen(
                             .align(Alignment.CenterHorizontally)
                             .padding(16.dp)
                     ) {
-                        PopupBox(showPopUp = showPopUp, updatePopUp = {newVal -> showPopUp = newVal})
+                        Log.e("STORE","${emailState.value} is EMAIL IN HomeScreen which csalls popupbox")
+                        PopupBox(showPopUp = showPopUp, updatePopUp = {newVal -> showPopUp = newVal}, email = emailState.value,dataStore)
                     }
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
                     ) {
-                        items(7, key = null) {
-                            UserEachRow {
-                                navHostController.navigate(CHAT_SCREEN)
-                            }
+                        items(friendsEmails) { friend ->
+                            UserEachRow(
+                                username = friend,
+                                latestMessage = "Donee",
+                                onClick = {}
+                            )
                         }
                     }
                 }
@@ -386,7 +403,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit) {
+fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -403,7 +420,7 @@ fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit) {
             )*/
             .padding(start = 20.dp, top = 25.dp)
     ) {
-        Searchbar2(updatePopUp)
+        Searchbar2(updatePopUp, onLogOutPress = onLogOutPress )
 
         Column(
             modifier = Modifier
@@ -454,6 +471,8 @@ fun ViewStoryLayout() {
 
 @Composable
 fun UserEachRow(
+    username: String,
+    latestMessage: String,
     onClick: () -> Unit
 ) {
 
@@ -479,13 +498,13 @@ fun UserEachRow(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Anish", style = TextStyle(
+                            text = username, style = TextStyle(
                                 color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold
                             )
                         )
                         Spacer(modifier = Modifier.height(5.dp))
                         Text(
-                            text = "Okay", style = TextStyle(
+                            text = latestMessage, style = TextStyle(
                                 color = Gray, fontSize = 14.sp
                             )
                         )
@@ -621,22 +640,24 @@ fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
     }
 }
 
-suspend fun addFriend(email: String) {
+suspend fun addFriend(email: String, textState: String,dataStore: StoreUserEmail) {
+
+    val emailnew = dataStore.getEmail.first()
+
+    Log.e("STORE", "EMAIL IN ADD FRIEND ISsss: ${emailnew.toString()}")
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid
     if (uid != null) {
         val db = FirebaseFirestore.getInstance()
-        val userRef = db.collection("users").document(uid).collection("Friends")
-
-
-
+        val userRef = db.collection("users").document(emailnew.toString()).collection("Friends")
+        Log.e("STORE", "EMAIL IN ADD FRIEND IS: $email")
         val data = hashMapOf(
-            "Email" to email
+            "Email" to textState
         )
 
         try {
             // Set the data in Firestore
-            userRef.add(data, /* SetOptions */).await()
+            userRef.document(textState).set(data).await()
         } catch (e: Exception) {
             // Handle any errors here
             Log.e("STORE", "Error storing Email number: $e")
