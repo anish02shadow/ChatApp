@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun CreateAccountScreenEmail(
-                activity: Activity, onNavigateToHome: ()->Unit = {},  onEmailChange:(String) ->Unit,
+                activity: Activity, onNavigateToUsername: ()->Unit = {},  onEmailChange:(String) ->Unit,
                 viewModel: AuthViewModel = hiltViewModel()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -177,7 +177,7 @@ fun CreateAccountScreenEmail(
                                                         storePhoneNumber(phoneState)
                                                         onEmailChange(phoneState)
                                                         isDialog = false
-                                                        onNavigateToHome()
+                                                        onNavigateToUsername()
                                                     }
                                                     is ResultState.Failure->{
                                                         isDialog = false

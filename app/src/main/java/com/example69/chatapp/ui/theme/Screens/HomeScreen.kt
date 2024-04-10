@@ -33,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import com.example69.chatapp.navigation.CHAT_SCREEN
 import com.google.firebase.auth.FirebaseAuth
 import android.util.Log
@@ -70,6 +69,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import com.example69.chatapp.R
 import com.example69.chatapp.data.StoreUserEmail
@@ -318,7 +318,9 @@ fun HomeScreen(
     onLogOutPress:() ->Unit = {},
     friends: Flow<List<String>>,
     email2: String,
-    dataStore: StoreUserEmail
+    dataStore: StoreUserEmail,
+    onClick: (String) -> Unit,
+    onNavigateToChat: (Boolean?) -> Unit
 
 ) {
 
@@ -366,7 +368,7 @@ fun HomeScreen(
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                    //verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "Messages",
@@ -383,14 +385,26 @@ fun HomeScreen(
                         Log.e("STORE","${emailState.value} is EMAIL IN HomeScreen which csalls popupbox")
                         PopupBox(showPopUp = showPopUp, updatePopUp = {newVal -> showPopUp = newVal}, email = emailState.value,dataStore)
                     }
+
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
                     ) {
+                        item{
+                            UserEachRow(
+                                username = email2,
+                                latestMessage = "Donee",
+                                onClick = onClick,
+                                onNavigateToChat = onNavigateToChat,
+                                canChat = true
+                            )
+                        }
                         items(friendsEmails) { friend ->
                             UserEachRow(
                                 username = friend,
                                 latestMessage = "Donee",
-                                onClick = {}
+                                onClick = onClick,
+                                onNavigateToChat = onNavigateToChat,
+                                canChat = false
                             )
                         }
                     }
@@ -473,7 +487,9 @@ fun ViewStoryLayout() {
 fun UserEachRow(
     username: String,
     latestMessage: String,
-    onClick: () -> Unit
+    onClick: (String) -> Unit,
+    onNavigateToChat: (Boolean) -> Unit,
+    canChat: Boolean
 ) {
 
     Box(
@@ -481,7 +497,8 @@ fun UserEachRow(
             .fillMaxWidth()
             .background(White)
             .noRippleEffect { signOut() }
-            .clickable(onClick = onClick)
+            .clickable(onClick = {onClick(username)
+                    onNavigateToChat(canChat)})
             .padding(horizontal = 20.dp, vertical = 5.dp),
     ) {
         Column {
@@ -500,7 +517,7 @@ fun UserEachRow(
                         Text(
                             text = username, style = TextStyle(
                                 color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold
-                            )
+                            ), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
                         )
                         Spacer(modifier = Modifier.height(5.dp))
                         Text(
@@ -652,7 +669,7 @@ suspend fun addFriend(email: String, textState: String,dataStore: StoreUserEmail
         val userRef = db.collection("users").document(emailnew.toString()).collection("Friends")
         Log.e("STORE", "EMAIL IN ADD FRIEND IS: $email")
         val data = hashMapOf(
-            "Email" to textState
+            "Email" to textState,
         )
 
         try {

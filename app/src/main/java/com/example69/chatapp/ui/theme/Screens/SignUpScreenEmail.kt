@@ -42,17 +42,19 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
+import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 
 @Composable
-fun SignUpScreenEmail(navHostController: NavHostController,
-                 activity: Activity,
-                 viewModel: AuthViewModel = hiltViewModel()) {
+fun SignUpScreenEmail(activity: Activity,
+                      dataStore: StoreUserEmail,
+                      onNavigateToHome:() ->Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -99,7 +101,7 @@ fun SignUpScreenEmail(navHostController: NavHostController,
 
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
-                    text = "Full Name",
+                    text = "Username",
                     style = MaterialTheme.typography.labelLarge.copy(Color(0xFF4B4F5A)),
                     modifier = Modifier.padding(bottom = 10.dp, top = 10.dp)
                 )
@@ -107,7 +109,7 @@ fun SignUpScreenEmail(navHostController: NavHostController,
                 CustomStyleTextFieldSignUp(
                     height = 50,
                     textState = nameState,
-                    "Enter your email",
+                    "Enter a Username",
                     R.drawable.baseline_phone_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
@@ -117,7 +119,7 @@ fun SignUpScreenEmail(navHostController: NavHostController,
                 )
 
                 Text(
-                    text = "Password",
+                    text = "Bio",
                     style = MaterialTheme.typography.labelLarge.copy(Color(0xFF4B4F5A)),
                     modifier = Modifier.padding(bottom = 10.dp, top = 10.dp)
                 )
@@ -125,7 +127,7 @@ fun SignUpScreenEmail(navHostController: NavHostController,
                 CustomStyleTextFieldSignUp(
                     height= 150,
                     textState = bioState,
-                    "Enter your Password",
+                    "Enter your Bio",
                     R.drawable.baseline_phone_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
@@ -138,8 +140,8 @@ fun SignUpScreenEmail(navHostController: NavHostController,
                 Button(
                     onClick = {
                         scope.launch {
-                            updateNameAndBio(nameState,bioState)
-                            navHostController.navigate(HOME_SCREEN)
+                            updateNameAndBio(nameState,bioState,dataStore)
+                            onNavigateToHome()
                         }
 
                     },
@@ -156,7 +158,7 @@ fun SignUpScreenEmail(navHostController: NavHostController,
                 ) {
                     Text(
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
-                        text = "Verify",
+                        text = "Submit",
                         color = Color.White
                     )
                 }
@@ -167,6 +169,29 @@ fun SignUpScreenEmail(navHostController: NavHostController,
     }
 }
 
+suspend fun updateNameAndBio(name: String, bio: String,dataStore: StoreUserEmail) {
+    val emaill = dataStore.getEmail.first()
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
 
+    if (uid != null) {
+        val db = FirebaseFirestore.getInstance()
+        val userRef = db.collection("users").document(emaill)
+
+        // Create a map with the updated data
+        val data = hashMapOf(
+            "Username" to name,
+            "Bio" to bio
+        )
+
+        try {
+            // Update the data in Firestore
+            userRef.update(data as Map<String, String>).await()
+        } catch (e: Exception) {
+            // Handle any errors here
+            Log.e("STORE", "Error updating name and bio: $e")
+        }
+    }
+}
 
 

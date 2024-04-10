@@ -1,17 +1,15 @@
 package com.example69.chatapp.navigation
 
+import android.os.Build
 import android.util.Log
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example69.chatapp.MainActivity
 import com.example69.chatapp.ui.theme.Screens.ChatScreen
@@ -25,9 +23,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
-import androidx.constraintlayout.compose.State
-import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example69.chatapp.data.StoreUserEmail
+import com.example69.chatapp.ui.theme.Screens.SignUpScreenEmail
 import kotlinx.coroutines.flow.first
 
 import kotlinx.coroutines.launch
@@ -124,6 +123,7 @@ import kotlinx.coroutines.launch
 //    }
 //}
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainNavigation(activity: MainActivity) {
     val navController = rememberNavController()
@@ -137,11 +137,17 @@ fun MainNavigation(activity: MainActivity) {
     val savedEmail by savedEmailState
     var userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
 
+    val friendEmail = remember{ mutableStateOf("") }
+
     // Retrieve the email value from DataStore preferences
     LaunchedEffect(Unit) {
         val email = dataStore.getEmail.first()
         emailState.value = email ?: ""
         Log.e("STORE", "${emailState.value} is EmailState.Value launched effect")
+    }
+
+    fun onNavigateToChat(canChat: Boolean) {
+        navController.navigate("CHAT_SCREEN/$canChat")
     }
 
 
@@ -163,34 +169,44 @@ fun MainNavigation(activity: MainActivity) {
             }
         }
         composable(HOME_SCREEN) {
-            Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
-            userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-            val friends = getFriendsEmails(emailState.value,dataStore)
-            if (userIsSignedIn) {
-                HomeScreen(
-                    onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
-                    friends = friends,
-                    email2 = emailState.value,
-                    dataStore = dataStore
-                )
+            LaunchedEffect(emailState.value){
+                emailState.value = dataStore.getEmail.first()
+            }
+            if(emailState.value.isNotEmpty()){
+                Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
+                userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
+                val friends = getFriendsEmails(emailState.value,dataStore)
+                if (userIsSignedIn) {
+                    HomeScreen(
+                        onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
+                        friends = friends,
+                        email2 = emailState.value,
+                        dataStore = dataStore,
+                        onClick = { newVal -> friendEmail.value = newVal },
+                        onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean) }
+                    )
+                }
             }
         }
-        composable(CHAT_SCREEN) {
+        composable("CHAT_SCREEN/{canChat}", arguments = listOf(navArgument("canChat"){type = NavType.BoolType})) { backStackEntry ->
             userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-            val messages = retrieveMessages(savedEmail)
+            val messages = retrieveMessages(friendEmail.value)
             //ChatScreen(navController)
             if (userIsSignedIn) {
-                ChatScreen(savedEmail,messages)
+                ChatScreen(savedEmail,messages,friendEmail.value,backStackEntry.arguments?.getBoolean("canChat") )
             }
         }
         composable(SIGNUP_SCREEN){
-            CreateAccountScreenEmail(onNavigateToHome = {navController.navigate(HOME_SCREEN)}, activity = activity,
+            CreateAccountScreenEmail(onNavigateToUsername = {navController.navigate(USERNAME_SCREEN)}, activity = activity,
                 onEmailChange = { newVal ->
                     scope.launch {
                         dataStore.saveEmail(newVal)
                     }
                 })
             //SignUpScreen(navHostController = navController , activity = activity)
+        }
+        composable(USERNAME_SCREEN){
+            SignUpScreenEmail(activity = activity, dataStore = dataStore, onNavigateToHome = { navController.navigate(HOME_SCREEN) })
         }
     }
         // Other composables
@@ -205,8 +221,9 @@ private fun getStartDestination(userIsSignedIn: Boolean): String {
 
 
 const val HOME_SCREEN = "Home screen"
-const val CHAT_SCREEN = "Chat screen"
+const val CHAT_SCREEN = "Chat screen/{canChat}"
 const val LOGIN_SCREEN = "lOGIN screen"
 const val SIGNUP_SCREEN = "Signup Screen"
+const val USERNAME_SCREEN = "Username Screen"
 
 

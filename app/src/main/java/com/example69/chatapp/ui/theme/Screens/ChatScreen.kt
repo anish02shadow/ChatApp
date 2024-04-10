@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -61,10 +62,13 @@ import java.util.Date
 import java.util.Locale
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ChatScreen(
     email: String,
-    messages: Flow<List<Message>>
+    messages: Flow<List<Message>>,
+    friendEmail: String?,
+    canChat: Boolean?
 ) {
 
     val lazyListState = rememberLazyListState()
@@ -88,10 +92,12 @@ fun ChatScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            UserNameRow(
-                modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp),
-                name = email
-            )
+            friendEmail?.let {
+                UserNameRow(
+                    modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp),
+                    name = it
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -103,7 +109,6 @@ fun ChatScreen(
                     .padding(top = 25.dp)
 
             ) {
-
                     MessagesList(messages = Messages,lazyListState)
 //                LazyColumn(
 //                    modifier = Modifier.padding(
@@ -122,12 +127,26 @@ fun ChatScreen(
             }
         }
 
-        CustomTextField(
-            text = message, onValueChange = { message = it },
-            modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 20.dp)
-                .align(BottomCenter)
-        )
+        var message by remember { mutableStateOf("") }
+        val focusManager = LocalFocusManager.current
+
+        // Define the function to handle trailing icon click
+        val onTrailingIconClick: () -> Unit = {
+            message = "" // Clear the text
+            focusManager.clearFocus() // Close the keyboard
+        }
+
+        friendEmail?.let {
+            CustomTextField(
+                text = message, onValueChange = { message = it },
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 20.dp)
+                    .align(BottomCenter),
+                canChat = canChat,
+                friendEmail = it,
+                onTrailingIconClick = onTrailingIconClick
+            )
+        }
     }
 
 }
@@ -166,7 +185,7 @@ fun ChatRow(
             modifier = Modifier
                 .background(
                     if (direction) LightRed else LightYellow,
-                    RoundedCornerShape(100.dp)
+                    RoundedCornerShape(10.dp)
                 ),
             contentAlignment = Center
         ) {
@@ -176,7 +195,7 @@ fun ChatRow(
                     fontSize = 15.sp
                 ),
                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 15.dp),
-                textAlign = TextAlign.End
+                textAlign = TextAlign.Start
             )
         }
         Text(
@@ -191,12 +210,16 @@ fun ChatRow(
 
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTextField(
     text: String,
     modifier: Modifier = Modifier,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    canChat: Boolean?,
+    onTrailingIconClick: () -> Unit,
+    friendEmail:  String
 ) {
     TextField(
         value = text, onValueChange = { onValueChange(it) },
@@ -221,7 +244,9 @@ fun CustomTextField(
             unfocusedIndicatorColor = Color.Transparent,
         ),
         leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
-        trailingIcon = { CommonIconButtonDrawable(R.drawable.mic) },
+        trailingIcon = {
+            CommonIconButtonDrawable(R.drawable.mic, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick)
+                       },
         modifier = modifier.fillMaxWidth(),
         shape = CircleShape
     )
@@ -244,15 +269,31 @@ fun CommonIconButton(
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CommonIconButtonDrawable(
-    @DrawableRes icon: Int
+    @DrawableRes icon: Int,
+    friendEmail: String,
+    canChat: Boolean?,
+    message: String,
+    onTrailingIconClick: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     Box(
         modifier = Modifier
             .background(Yellow, CircleShape)
             .size(33.dp)
-            .clickable { }, contentAlignment = Center
+            .clickable {
+                onTrailingIconClick()
+                if (canChat == true) {
+                    scope.launch {
+                        addChat(message, friendEmail)
+                    }
+                } else {
+
+                }
+            }, contentAlignment = Center
+
     ) {
         Icon(
             painter = painterResource(id = icon), contentDescription = "",
@@ -260,7 +301,6 @@ fun CommonIconButtonDrawable(
             modifier = Modifier.size(15.dp)
         )
     }
-
 }
 
 @Composable
@@ -395,22 +435,3 @@ fun getFriendsEmails(userEmail: String,dataStore: StoreUserEmail): Flow<List<Str
     }
 }
 
-suspend fun getFriends(email: String){
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid
-
-    if (uid != null) {
-        val db = FirebaseFirestore.getInstance()
-        val userRef = db.collection("users").document(email).collection("Friends")
-
-        userRef.get()
-            .addOnSuccessListener { result ->
-                for (document in result) {
-                    Log.d("STORE", "${document.id} => ${document.data}")
-                }
-            }
-            .addOnFailureListener { exception ->
-                Log.d("STORE", "Error getting documents: ", exception)
-            }
-    }
-}

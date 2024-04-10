@@ -42,9 +42,11 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
+import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -138,7 +140,7 @@ fun SignUpScreen(navHostController: NavHostController,
                 Button(
                     onClick = {
                         scope.launch {
-                            updateNameAndBio(nameState,bioState)
+                            //updateNameAndBio(nameState,bioState, dataStore)
                             navHostController.navigate(HOME_SCREEN)
                         }
 
@@ -252,27 +254,5 @@ fun CustomStyleTextFieldSignUp(
 }
 
 // Function to update the user's name and bio
-suspend fun updateNameAndBio(name: String, bio: String) {
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid
 
-    if (uid != null) {
-        val db = FirebaseFirestore.getInstance()
-        val userRef = db.collection("users").document(uid)
-
-        // Create a map with the updated data
-        val data = hashMapOf(
-            "name" to name,
-            "bio" to bio
-        )
-
-        try {
-            // Update the data in Firestore
-            userRef.update(data as Map<String, String>).await()
-        } catch (e: Exception) {
-            // Handle any errors here
-           Log.e("STORE", "Error updating name and bio: $e")
-        }
-    }
-}
 
