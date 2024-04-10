@@ -184,7 +184,7 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                                                 when (it) {
                                                     is ResultState.Success->{
                                                         Log.e("STORE", "SUCESSS  EMAIL SIGNinnn aahahah")
-                                                        storePhoneNumber(phoneState)
+                                                        //storePhoneNumber(phoneState)
                                                         onEmailChange(phoneState)
                                                         isDialog = false
                                                         Log.e("STORE", "cALLING Naviagte Home")

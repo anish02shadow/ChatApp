@@ -67,7 +67,7 @@ fun FriendRequestsScreen(friendRequests: Flow<List<FriendRequests>>, onAccept: (
                 color = Color.Black,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.W300,
-                modifier = Modifier.padding(top = 5.dp, start = 20.dp)
+                modifier = Modifier.padding(top = 15.dp, start = 20.dp)
             )
             LazyColumn(
                 modifier = Modifier.padding(bottom = 15.dp)
@@ -136,12 +136,12 @@ fun ReplyEmailListItem(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = email,
+                        text = username,
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Text(
                         text = email,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
                 IconButton(
@@ -159,7 +159,7 @@ fun ReplyEmailListItem(
             }
 
             Text(
-                text = email,
+                text = bio,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp, start = 12.dp),
             )

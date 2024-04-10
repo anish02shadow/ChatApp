@@ -156,7 +156,7 @@ fun MainNavigation(activity: MainActivity) {
     }
 
 
-    NavHost(navController = navController, startDestination = getStartDestination(userIsSignedIn)) {
+    NavHost(navController = navController, startDestination = HOME_SCREEN) {
         composable(LOGIN_SCREEN) {
             if (!userIsSignedIn) {
                 Log.e("STORE", "${savedEmail} is the email in LOGIN SCREEN")
@@ -174,26 +174,31 @@ fun MainNavigation(activity: MainActivity) {
             }
         }
         composable(HOME_SCREEN) {
-            LaunchedEffect(emailState.value) {
-                emailState.value = dataStore.getEmail.first()
+            userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
+            if(!userIsSignedIn){
+                navController.navigate(LOGIN_SCREEN)
             }
-            if (emailState.value.isNotEmpty()) {
-                Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
-                userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-                val friends = getFriendsEmails(emailState.value, dataStore)
-                if (userIsSignedIn) {
-                    HomeScreen(
-                        onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
-                        friends = friends,
-                        email2 = emailState.value,
-                        dataStore = dataStore,
-                        onClick = { email,username ->
-                            friendEmail.value = email
-                            friendUsername.value = username
-                                  },
-                        onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean)},
-                        onFriendRequests = {navController.navigate(FRIEND_REQUESTS)}
-                    )
+            else{
+                LaunchedEffect(emailState.value) {
+                    emailState.value = dataStore.getEmail.first()
+                }
+                if (emailState.value.isNotEmpty()) {
+                    Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
+                    val friends = getFriendsEmails(emailState.value, dataStore)
+                    if (userIsSignedIn) {
+                        HomeScreen(
+                            onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
+                            friends = friends,
+                            email2 = emailState.value,
+                            dataStore = dataStore,
+                            onClick = { email,username ->
+                                friendEmail.value = email
+                                friendUsername.value = username
+                            },
+                            onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean)},
+                            onFriendRequests = {navController.navigate(FRIEND_REQUESTS)}
+                        )
+                    }
                 }
             }
         }
@@ -231,7 +236,7 @@ fun MainNavigation(activity: MainActivity) {
         }
         composable(FRIEND_REQUESTS){
             val friendRequests = getFriendRequests(dataStore = dataStore)
-            Log.e("STORE","FRIEND_REQUESTS ${friendRequests}")
+            //Log.e("STORE","FRIEND_REQUESTS ${friendRequests}")
             FriendRequestsScreen(friendRequests, onAccept = { newVal ->
                 scope.launch {
                     acceptFriendRequest(newVal,dataStore)
@@ -255,6 +260,6 @@ const val CHAT_SCREEN = "Chat screen/{canChat}"
 const val LOGIN_SCREEN = "lOGIN screen"
 const val SIGNUP_SCREEN = "Signup Screen"
 const val USERNAME_SCREEN = "Username Screen"
-const val FRIEND_REQUESTS = "Username Screen"
+const val FRIEND_REQUESTS = "Friend Requests Screen"
 
 

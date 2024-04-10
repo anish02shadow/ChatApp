@@ -25,47 +25,31 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 
-suspend fun getUsernameFromEmail(email: String, dataStore: StoreUserEmail): String? {
-    return try {
-        Log.e("STORE", "Fetched Username 1")
-        val userDocument = FirebaseFirestore.getInstance().collection("users").document(email).get().await()
-        Log.e("STORE", "Fetched Username 2")
-        if (userDocument.exists()) {
-            userDocument.getString("Username")
-        } else {
-            Log.e("STORE", "Document does not exist for email: $email")
-            null
-        }
-    } catch (e: Exception) {
-        // Handle any errors here
-        Log.e("STORE", "Error fetching username: $e")
-        null
-    }
-}
-suspend fun addFriend(email: String, textState: String,dataStore: StoreUserEmail) {
-
-    val userDocument = FirebaseFirestore.getInstance().collection("users").document(email).get().await()
-
-    val username = userDocument.getString("Username")
-
+suspend fun addFriend(email: String, textState: String, dataStore: StoreUserEmail) {
     val emailnew = dataStore.getEmail.first()
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
 
-    Log.e("STORE", "EMAIL IN ADD FRIEND ISsss username: ${username}")
-    Log.e("STORE", "EMAIL IN ADD FRIEND ISsss: ${textState}")
-    if(username!=null){
-        Log.e("STORE", "Its going insdee addfriend username not null: ${username}")
-        val auth = FirebaseAuth.getInstance()
-        val uid = auth.currentUser?.uid
-        if (uid != null) {
-            val db = FirebaseFirestore.getInstance()
-            val userRef = db.collection("users").document(emailnew).collection("Friends")
-            val userRef2 = db.collection("users").document(textState).collection("Requests")
+    if (uid != null) {
+        val db = FirebaseFirestore.getInstance()
+        val userRef = db.collection("users").document(emailnew).collection("Friends")
+        val userRef2 = db.collection("users").document(textState).collection("Requests")
+
+        // Check if the document exists before attempting to set the data
+        val userDoc2 = db.collection("users").document(textState).get().await()
+        if (!userDoc2.exists()) {
+            Log.e("STORE", "Document does not exist for email: $textState")
+            //Result.failure(Exception("Document does not exist for email: $textState"))
+        }
+        else if(userRef2.document(emailnew).get().await().getBoolean("Status") == true){
+            Log.e("STORE", "Already friend present: $textState")
+        }
+        else{
             Log.e("STORE", "EMAIL IN ADD FRIEND IS: $email")
             val data = hashMapOf(
                 "Email" to textState,
                 "Status" to false
             )
-
             val data2 = hashMapOf(
                 "Email" to emailnew,
                 "Status" to false
@@ -74,14 +58,58 @@ suspend fun addFriend(email: String, textState: String,dataStore: StoreUserEmail
             try {
                 // Set the data in Firestore
                 userRef.document(textState).set(data).await()
-                userRef2.document(emailnew ).set(data2).await()
+                userRef2.document(emailnew).set(data2).await()
             } catch (e: Exception) {
                 // Handle any errors here
                 Log.e("STORE", "Error storing Email number: $e")
+                throw e
             }
         }
     }
+
 }
+
+//suspend fun addFriend(email: String, textState: String,dataStore: StoreUserEmail) {
+//
+//    val db = FirebaseFirestore.getInstance()
+//    val userDocument = FirebaseFirestore.getInstance().collection("users").document(email).get().await()
+//
+//    val username = userDocument.getString("Username")
+//
+//    val emailnew = dataStore.getEmail.first()
+//
+//    Log.e("STORE", "EMAIL IN ADD FRIEND ISsss username: ${username}")
+//    Log.e("STORE", "EMAIL IN ADD FRIEND ISsss: ${textState}")
+//    if(username!=null){
+//        Log.e("STORE", "Its going insdee addfriend username not null: ${username}")
+//        val auth = FirebaseAuth.getInstance()
+//        val uid = auth.currentUser?.uid
+//        if (uid != null) {
+//            val db = FirebaseFirestore.getInstance()
+//            val userRef = db.collection("users").document(emailnew).collection("Friends")
+//            val userRef2 = db.collection("users").document(textState).collection("Requests")
+//            Log.e("STORE", "EMAIL IN ADD FRIEND IS: $email")
+//            val data = hashMapOf(
+//                "Email" to textState,
+//                "Status" to false
+//            )
+//
+//            val data2 = hashMapOf(
+//                "Email" to emailnew,
+//                "Status" to false
+//            )
+//
+//            try {
+//                // Set the data in Firestore
+//                userRef.document(textState).set(data).await()
+//                userRef2.document(emailnew ).set(data2).await()
+//            } catch (e: Exception) {
+//                // Handle any errors here
+//                Log.e("STORE", "Error storing Email number: $e")
+//            }
+//        }
+//    }
+//}
 
 suspend fun updateNameAndBio(name: String, bio: String,dataStore: StoreUserEmail) {
     val emaill = dataStore.getEmail.first()
@@ -177,226 +205,82 @@ fun retrieveMessages(email: String): Flow<List<Message>> = callbackFlow {
     }
 }
 
-//@Suppress("EXPERIMENTAL_API_USAGE")
-//fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<List<String>> = callbackFlow {
-//    val email = dataStore.getEmail.first()
-//    Log.d("STORE", "Fetched $email in getFriendsUsernames")
-//
-//    val usersCollectionRef = FirebaseFirestore.getInstance().collection("users")
-//    val friendEmailsRef = usersCollectionRef.document(email).collection("Friends")
-//
-//    val snapshotListener = friendEmailsRef.addSnapshotListener { snapshot, error ->
-//        if (error != null) {
-//            this.trySend(emptyList())
-//            return@addSnapshotListener
-//        }
-//
-//        if (snapshot != null) {
-//            val friendEmails = snapshot.documents.mapNotNull { document ->
-//                document.getString("Email") // Get the email from the document ID
-//            }
-//            Log.d("STORE", "Fetched ${friendEmails.size} friends")
-//
-//            // Retrieve usernames for the fetched friend emails
-//            val friendUsernames = mutableListOf<String>()
-//            val getUsernameTasks = friendEmails.map { friendEmail ->
-//                usersCollectionRef.document(friendEmail).get().addOnSuccessListener { document ->
-//                    val username = document.getString("Username")
-//                    if (username != null) {
-//                        friendUsernames.add(username)
-//                    }
-//                }
-//            }
-//
-//            Tasks.whenAllSuccess<Unit>(getUsernameTasks)
-//                .addOnCompleteListener { task ->
-//                    if (task.isSuccessful) {
-//                        if (friendUsernames.isEmpty()) {
-//
-//                        }
-//                        this.trySend(friendUsernames)
-//                    } else {
-//                        Log.e("STORE", "Error getting usernames: ${task.exception}")
-//                    }
-//                }
-//        }
-//    }
-//
-//    awaitClose {
-//        Log.d("STORE", "Closing snapshot listener")
-//        snapshotListener.remove()
-//    }
-//}
-@Suppress("EXPERIMENTAL_API_USAGE")
-fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<List<Pair<String, String>>> = callbackFlow {
+
+fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<List<Pair<String, String>>> = flow {
     val email = dataStore.getEmail.first()
     Log.d("STORE", "Fetched $email in getFriendsEmailsAndUsernames")
+    val db = FirebaseFirestore.getInstance()
+    val friendEmailsAndUsernames = mutableListOf<Pair<String, String>>()
 
-    val usersCollectionRef = FirebaseFirestore.getInstance().collection("users")
-    val friendEmailsRef = usersCollectionRef.document(email).collection("Friends")
-
-    val snapshotListener = friendEmailsRef.addSnapshotListener { snapshot, error ->
-        if (error != null) {
-            this.trySend(emptyList())
-            return@addSnapshotListener
-        }
-
-        if (snapshot != null) {
-            val friendEmailsAndUsernames = mutableListOf<Pair<String, String>>()
-            snapshot.documents.forEach { document ->
-                val friendEmail = document.getString("Email")
-                if (friendEmail != null) {
-                    usersCollectionRef.document(friendEmail).get().addOnSuccessListener { usernameDocument ->
-                        val username = usernameDocument.getString("Username")
-                        val status = usernameDocument.getBoolean("Status")
-                        if (username != null && status == true) {
-                            friendEmailsAndUsernames.add(Pair(friendEmail, username))
-                        }
-                    }
-                        .addOnFailureListener { e ->
-                        Log.e("STORE", "Error getting username: $e")
-                    }
-                }
+    val result = db.collection("users").document(email).collection("Friends").get().await()
+    for (document in result.documents) {
+        val friendEmail = document.getString("Email")
+        val status = document.getBoolean("Status")
+        if (friendEmail != null) {
+            val friendData = db.collection("users").document(friendEmail).get().await()
+            val username = friendData.getString("Username")
+            Log.d("STORE", "FriendEmail is $status & $username is cirrenttt")
+            if (username != null && status == true) {
+                friendEmailsAndUsernames.add(Pair(friendEmail, username))
             }
-            this.trySend(friendEmailsAndUsernames.toList())
         }
     }
 
-    awaitClose {
-        Log.d("STORE", "Closing snapshot listener")
-        snapshotListener.remove()
-    }
+    emit(friendEmailsAndUsernames)
 }
 
-
-//@Suppress("EXPERIMENTAL_API_USAGE")
-//fun getFriendsEmails(userEmail: String,dataStore: StoreUserEmail): Flow<List<String>> = callbackFlow {
-//    val emaill = dataStore.getEmail.first()
-//    Log.d("STORE", "Fetched ${emaill} emailllllll getFriendsEmail")
-//    val userRef = FirebaseFirestore.getInstance().collection("users").document(emaill).collection("Friends")
-//
-//    val snapshotListener = userRef.addSnapshotListener { snapshot, error ->
-//        if (error != null) {
-//            this.trySend(emptyList())
-//            return@addSnapshotListener
-//        }
-//
-//        if (snapshot != null) {
-//            val friendUsernames = snapshot.documents.mapNotNull { document ->
-//                document.getString("Email")
-//            }
-//            Log.d("STORE", "Fetched ${friendUsernames.size} friends")
-//            this.trySend(friendUsernames)
-//        }
-//    }
-//
-//    awaitClose {
-//        Log.d("STORE", "Closing snapshot listener")
-//        snapshotListener.remove()
-//    }
-//}
-
-
-fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = callbackFlow {
+fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = flow {
     val email = dataStore.getEmail.first()
     Log.d("STORE2", "Fetched $email in getFriendsEmailsAndUsernames in GETFRIENDREQUESTS")
+    val db = FirebaseFirestore.getInstance()
 
-    val usersCollectionRef = FirebaseFirestore.getInstance().collection("users")
-    val requestsRef = usersCollectionRef.document(email).collection("Requests")
+    val friendRequestsEmailsAndUsernamesAndBio = mutableListOf<FriendRequests>()
 
-    val snapshotListener = requestsRef.addSnapshotListener { snapshot, error ->
-        Log.d("STORE2", "Fetched $email FAILEDDDD AGHHH GETFRIENDREQUESTS part1")
-        if (error != null) {
-            this.trySend(emptyList())
-            Log.d("STORE2", "Fetched $email FAILEDDDD AGHHH GETFRIENDREQUESTS")
-            return@addSnapshotListener
-        }
-
-        if (snapshot != null) {
-            Log.d("STORE2", "Fetched $email snapshot not null")
-            val friendRequestsEmailsAndUsernamesAndBio = mutableListOf<FriendRequests>()
-            snapshot.documents.forEach { document ->
-                val friendEmail = document.getString("Email")
-                Log.d("STORE2", "Fetched $friendEmail inside snapshot")
-                if (friendEmail != null) {
-                    usersCollectionRef.document(friendEmail).get().addOnSuccessListener { usernameDocument ->
-                        val username = usernameDocument.getString("Username")
-                        val email = usernameDocument.getString("Email")
-                        val bio = usernameDocument.getString("Bio")
-                        if (username != null) {
-                            Log.d("STORE2", "ADDED $username inside snapshot")
-                            friendRequestsEmailsAndUsernamesAndBio.add(FriendRequests(username = username, email = email.toString(), bio = bio.toString()))
-                            this.trySend(friendRequestsEmailsAndUsernamesAndBio.toList())
-                        }
-                    }
-                }
+    val result = db.collection("users").document(email).collection("Requests").get().await()
+    for(document in result.documents) {
+        val friendEmail = document.getString("Email")
+        val status = document.getBoolean("Status")
+        Log.d("STORE2", "INSIDE and this is frinedEMAIL $friendEmail in GETFRIENDREQUESTS")
+        if (friendEmail != null && status == false) {
+            val friendData = db.collection("users").document(friendEmail).get().await()
+            val username = friendData.getString("Username")
+            val email = friendData.getString("Email")
+            val bio = friendData.getString("Bio")
+            Log.d("STORE2", "Username is NOT NULL $username in GETFRIENDREQUESTS")
+            if (username != null) {
+                Log.d("STORE2", "ADDED $username inside snapshot")
+                friendRequestsEmailsAndUsernamesAndBio.add(FriendRequests(username = username, email = email.toString(), bio = bio.toString()))
             }
         }
     }
-
-    awaitClose {
-        Log.d("STORE", "Closing snapshot listener")
-        snapshotListener.remove()
-    }
+    emit(friendRequestsEmailsAndUsernamesAndBio)
 }
 
-//suspend fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = flow {
-//    val email = dataStore.getEmail.first()
-//    Log.d("STORE2", "Fetched $email in getFriendsEmailsAndUsernames in GETFRIENDREQUESTS")
-//
-//    val usersCollectionRef = FirebaseFirestore.getInstance().collection("users")
-//    val requestsRef = usersCollectionRef.document(email).collection("Requests")
-//
-//    try {
-//        val snapshot = requestsRef.get().await()
-//        val friendRequestsEmailsAndUsernamesAndBio = mutableListOf<FriendRequests>()
-//
-//        for (document in snapshot.documents) {
-//            val friendEmail = document.getString("Email")
-//            Log.d("STORE2", "Fetched $friendEmail inside snapshot")
-//
-//            if (friendEmail != null) {
-//                val usernameDocument = usersCollectionRef.document(friendEmail).get().await()
-//                val username = usernameDocument.getString("Username")
-//                val email = usernameDocument.getString("Email")
-//                val bio = usernameDocument.getString("Bio")
-//
-//                if (username != null) {
-//                    Log.d("STORE2", "ADDED $username inside snapshot")
-//                    friendRequestsEmailsAndUsernamesAndBio.add(FriendRequests(username = username, email = email ?: "", bio = bio ?: ""))
-//                }
-//            }
-//        }
-//
-//        emit(friendRequestsEmailsAndUsernamesAndBio)
-//    } catch (e: Exception) {
-//        Log.e("STORE2", "Error getting friend requests: $e")
-//        emit(emptyList()) // Emit an empty list if there's an error
-//    }
-//}
-
-
 suspend fun acceptFriendRequest(email: String, dataStore: StoreUserEmail) {
-    val currentUserEmail = dataStore.getEmail.first() // Assuming you fetch the current user's email from DataStore
+    val currentUserEmail = dataStore.getEmail.first()
 
     val db = FirebaseFirestore.getInstance()
     val userRequestsRef = db.collection("users").document(currentUserEmail).collection("Requests")
+    val userFriendsRef = db.collection("users").document(currentUserEmail).collection("Friends")
     val friendRef = db.collection("users").document(email).collection("Friends")
 
     val requestDocument = userRequestsRef.document(email)
     val requestDocument2 = friendRef.document(email)
+    val requestDocument3 = userFriendsRef.document(currentUserEmail)
+
     val requestData = hashMapOf(
         "Email" to email,
         "Status" to true
     )
     val requestData2 = hashMapOf(
-        "Email" to email,
+        "Email" to currentUserEmail,
         "Status" to true
     )
 
     try {
         requestDocument.set(requestData, SetOptions.merge()).await()
         requestDocument2.set(requestData2,SetOptions.merge()).await()
+        requestDocument3.set(requestData, SetOptions.merge()).await()
         Log.d("STORE", "Friend request from $email accepted")
     } catch (e: Exception) {
         Log.e("STORE", "Error accepting friend request: $e")

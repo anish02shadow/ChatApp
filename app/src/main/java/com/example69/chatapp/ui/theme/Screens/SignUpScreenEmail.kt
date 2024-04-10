@@ -47,15 +47,19 @@ import com.example69.chatapp.firebase.updateNameAndBio
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 
 @Composable
 fun SignUpScreenEmail(activity: Activity,
                       dataStore: StoreUserEmail,
-                      onNavigateToHome:() ->Unit = {}) {
+                      onNavigateToHome:() ->Unit= {}) {
+    val scope = rememberCoroutineScope()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -137,19 +141,21 @@ fun SignUpScreenEmail(activity: Activity,
                     }
                 )
 
-                val scope = rememberCoroutineScope()
+                var hasUserInteracted: Boolean by remember { mutableStateOf(false) }
+//                val scope = rememberCoroutineScope()
                 Button(
                     onClick = {
+                        hasUserInteracted = true
                         scope.launch {
-                            updateNameAndBio(nameState,bioState,dataStore)
-                            onNavigateToHome()
-                        }
-
-                    },
+                            updateNameAndBio(nameState, bioState, dataStore)
+                            Log.e("STORE","CALLED NAVIGATEHOME")
+                            onNavigateToHome()}
+                        },
                     modifier = Modifier
                         .padding(top = 30.dp, bottom = 34.dp)
                         .align(Alignment.CenterHorizontally)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                    ,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(
                             0xFF1BA57B
@@ -169,4 +175,5 @@ fun SignUpScreenEmail(activity: Activity,
         }
     }
 }
+
 
