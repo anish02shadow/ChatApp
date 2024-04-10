@@ -33,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example69.chatapp.navigation.CHAT_SCREEN
 import com.google.firebase.auth.FirebaseAuth
 import android.util.Log
 import android.widget.Toast
@@ -73,17 +72,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import com.example69.chatapp.R
 import com.example69.chatapp.data.StoreUserEmail
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example69.chatapp.firebase.addFriend
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit) {
+fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit) {
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
 
@@ -194,7 +192,9 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit) {
                     textColor = White))
                 DropdownMenuItem(text = { Text("Log Out") }, onClick = { FirebaseAuth.getInstance().signOut()
                     onLogOutPress()
-                })
+                }
+                )
+                DropdownMenuItem(text = { Text("Check Requests") }, onClick = { onFriendRequests() })
             }
         }
         
@@ -203,7 +203,7 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit) {
 
 @Composable
 fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit, email: String, dataStore: StoreUserEmail){
-    Log.e("STORE","$email is EMAIL IN PopUpBox which csalls CustomTrxtField2")
+    //Log.e("STORE","$email is EMAIL IN PopUpBox which csalls CustomTrxtField2")
     if(showPopUp){
         Box(
             modifier = Modifier
@@ -298,7 +298,7 @@ fun CustomStyleTextField2(
         keyboardActions = KeyboardActions(
             onNext = {
                 scope.launch {
-                    Log.e("STORE","$email is EMAIL IN CustomTextFielf which csalls addFriend, $dataStore")
+                    //Log.e("STORE","$email is EMAIL IN CustomTextFielf which csalls addFriend, $dataStore")
                     addFriend(email, textState,dataStore = dataStore)
                     val text = "Friend Request Sent!"
                     val duration = Toast.LENGTH_SHORT
@@ -316,36 +316,38 @@ fun CustomStyleTextField2(
 @Composable
 fun HomeScreen(
     onLogOutPress:() ->Unit = {},
-    friends: Flow<List<String>>,
+    friends: Flow<List<Pair<String, String>>>,
     email2: String,
     dataStore: StoreUserEmail,
-    onClick: (String) -> Unit,
-    onNavigateToChat: (Boolean?) -> Unit
-
+    onClick: (String,String) -> Unit,
+    onNavigateToChat: (Boolean?) -> Unit,
+    onFriendRequests: () ->Unit
 ) {
 
     val emailState = remember { mutableStateOf("") }
-    val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
-    val savedEmail by savedEmailState
-    val scope = rememberCoroutineScope()
+    //val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
 
     LaunchedEffect(emailState) {
         val email = dataStore.getEmail.first()
         emailState.value = email ?: ""
-        Log.e("STORE", "${emailState.value} is EmailState.Value launched effectoo")
+        //Log.e("STORE", "${emailState.value} is EmailState.Value launched effectoo")
     }
-
 
     var showPopUp by rememberSaveable {
         mutableStateOf(false)
     }
 
-    var friendsEmails by remember { mutableStateOf(emptyList<String>()) }
+    //var friendsEmails by remember { mutableStateOf(emptyList<String>()) }
+
+    var userdata by remember { mutableStateOf(emptyList<Pair<String,String>>()) }
 
     LaunchedEffect(friends) {
         val job = launch {
             friends.collect { newFriendsEmails ->
-                friendsEmails = newFriendsEmails
+//                friendsEmails = newFriendsEmails.map {
+//                    it.first
+//                }
+                userdata = newFriendsEmails
             }
         }
     }
@@ -360,7 +362,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding()
         ) {
-            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal}, onLogOutPress)
+            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal}, onLogOutPress, onFriendRequests = onFriendRequests)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -382,7 +384,7 @@ fun HomeScreen(
                             .align(Alignment.CenterHorizontally)
                             .padding(16.dp)
                     ) {
-                        Log.e("STORE","${emailState.value} is EMAIL IN HomeScreen which csalls popupbox")
+                        //Log.e("STORE","${emailState.value} is EMAIL IN HomeScreen which csalls popupbox")
                         PopupBox(showPopUp = showPopUp, updatePopUp = {newVal -> showPopUp = newVal}, email = emailState.value,dataStore)
                     }
 
@@ -395,16 +397,18 @@ fun HomeScreen(
                                 latestMessage = "Donee",
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
-                                canChat = true
+                                canChat = true,
+                                email =email2
                             )
                         }
-                        items(friendsEmails) { friend ->
+                        items(userdata) { friend ->
                             UserEachRow(
-                                username = friend,
+                                username = friend.second,
                                 latestMessage = "Donee",
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
-                                canChat = false
+                                canChat = false,
+                                email = friend.first
                             )
                         }
                     }
@@ -417,7 +421,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit) {
+fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -434,7 +438,7 @@ fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit)
             )*/
             .padding(start = 20.dp, top = 25.dp)
     ) {
-        Searchbar2(updatePopUp, onLogOutPress = onLogOutPress )
+        Searchbar2(updatePopUp, onLogOutPress = onLogOutPress, onFriendRequests = onFriendRequests  )
 
         Column(
             modifier = Modifier
@@ -486,8 +490,9 @@ fun ViewStoryLayout() {
 @Composable
 fun UserEachRow(
     username: String,
+    email: String,
     latestMessage: String,
-    onClick: (String) -> Unit,
+    onClick: (String,String) -> Unit,
     onNavigateToChat: (Boolean) -> Unit,
     canChat: Boolean
 ) {
@@ -497,8 +502,10 @@ fun UserEachRow(
             .fillMaxWidth()
             .background(White)
             .noRippleEffect { signOut() }
-            .clickable(onClick = {onClick(username)
-                    onNavigateToChat(canChat)})
+            .clickable(onClick = {
+                onClick(email,username)
+                onNavigateToChat(canChat)
+            })
             .padding(horizontal = 20.dp, vertical = 5.dp),
     ) {
         Column {
@@ -657,39 +664,8 @@ fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
     }
 }
 
-suspend fun addFriend(email: String, textState: String,dataStore: StoreUserEmail) {
 
-    val emailnew = dataStore.getEmail.first()
 
-    Log.e("STORE", "EMAIL IN ADD FRIEND ISsss: ${emailnew.toString()}")
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid
-    if (uid != null) {
-        val db = FirebaseFirestore.getInstance()
-        val userRef = db.collection("users").document(emailnew.toString()).collection("Friends")
-        Log.e("STORE", "EMAIL IN ADD FRIEND IS: $email")
-        val data = hashMapOf(
-            "Email" to textState,
-        )
 
-        try {
-            // Set the data in Firestore
-            userRef.document(textState).set(data).await()
-        } catch (e: Exception) {
-            // Handle any errors here
-            Log.e("STORE", "Error storing Email number: $e")
-        }
-
-//        userRef2.collection("Friends")
-//            .add(email)
-//            .addOnSuccessListener { documentReference ->
-//                Log.d("STORE", "DocumentSnapshot added with ID: ${documentReference.id}")
-//            }
-//            .addOnFailureListener { e ->
-//                Log.w("STORE", "Error adding document", e)
-//            }
-//    }
-    }
-}
 
 

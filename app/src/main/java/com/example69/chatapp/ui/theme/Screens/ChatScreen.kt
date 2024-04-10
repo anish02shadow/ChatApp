@@ -43,6 +43,7 @@ import androidx.navigation.NavHostController
 import com.example69.chatapp.R
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
+import com.example69.chatapp.firebase.addChat
 import com.example69.chatapp.ui.theme.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
@@ -67,7 +68,7 @@ import java.util.Locale
 fun ChatScreen(
     email: String,
     messages: Flow<List<Message>>,
-    friendEmail: String?,
+    friendUsername: String?,
     canChat: Boolean?
 ) {
 
@@ -92,7 +93,7 @@ fun ChatScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            friendEmail?.let {
+            friendUsername?.let {
                 UserNameRow(
                     modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp),
                     name = it
@@ -109,7 +110,7 @@ fun ChatScreen(
                     .padding(top = 25.dp)
 
             ) {
-                    MessagesList(messages = Messages,lazyListState)
+                    MessagesList(messages = Messages,lazyListState,canChat = canChat)
 //                LazyColumn(
 //                    modifier = Modifier.padding(
 //                        start = 15.dp,
@@ -136,7 +137,7 @@ fun ChatScreen(
             focusManager.clearFocus() // Close the keyboard
         }
 
-        friendEmail?.let {
+        email?.let {
             CustomTextField(
                 text = message, onValueChange = { message = it },
                 modifier = Modifier
@@ -152,7 +153,7 @@ fun ChatScreen(
 }
 
 @Composable
-fun MessagesList(messages: List<Message>,lazyListState: LazyListState = rememberLazyListState()) {
+fun MessagesList(messages: List<Message>,lazyListState: LazyListState = rememberLazyListState(), canChat: Boolean?) {
     LazyColumn(
         state = lazyListState,
         modifier = Modifier.padding(
@@ -164,12 +165,17 @@ fun MessagesList(messages: List<Message>,lazyListState: LazyListState = remember
     ) {
         items(messages, key = { it.timestamp }) { message ->
         ChatRow(
-            direction = false,
+            direction = !canChat!!,
             message = message.message,
             time = formatTimestamp(message.timestamp)
         )
     }
     }
+}
+private fun formatTimestamp(timestamp: Long): String {
+    val date = Date(timestamp)
+    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
+    return format.format(date)
 }
 @Composable
 fun ChatRow(
@@ -345,93 +351,5 @@ fun UserNameRow(
                 .size(24.dp))
     }
 
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-suspend fun addChat(text: String,email: String){
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid
-
-    if (uid != null) {
-        val db = FirebaseFirestore.getInstance()
-        val userRef = db.collection("users").document(email).collection("Messages").document()
-
-//        val currentDateTime: java.util.Date = java.util.Date()
-//        val currentTimestamp: Long = currentDateTime.time
-//
-//        val formatter = DateTimeFormatter.ofPattern("YYYY:MM:DD:HH:mm:ss")
-//        val current = LocalDateTime.now().format(formatter)
-
-        val data = hashMapOf(
-            "message" to text,
-            "timestamp" to FieldValue.serverTimestamp()
-        )
-
-        try {
-            userRef.set(data).await()
-        } catch (e: Exception) {
-            Log.e("STORE", "Error storing message $e")
-        }
-
-    }
-}
-
-@Suppress("EXPERIMENTAL_API_USAGE")
-fun retrieveMessages(email: String): Flow<List<Message>> = callbackFlow {
-    val userRef = FirebaseFirestore.getInstance().collection("users").document(email).collection("Messages")
-    val snapshotListener = userRef.orderBy("timestamp", Query.Direction.ASCENDING)
-        .addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                this.trySend(emptyList())
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null) {
-                val messages = snapshot.documents.map { document ->
-                    val message = document.getString("message") ?: ""
-                    val timestamp = document.getTimestamp("timestamp")?.toDate()?.time ?: 0L
-                    Message(message, timestamp, false)
-                }
-                this.trySend(messages)
-            }
-        }
-
-    awaitClose {
-        snapshotListener.remove()
-    }
-}
-
-private fun formatTimestamp(timestamp: Long): String {
-    val date = Date(timestamp)
-    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return format.format(date)
-}
-
-
-@Suppress("EXPERIMENTAL_API_USAGE")
-fun getFriendsEmails(userEmail: String,dataStore: StoreUserEmail): Flow<List<String>> = callbackFlow {
-    val emaill = dataStore.getEmail.first()
-    Log.d("STORE", "Fetched ${emaill} emailllllll getFriendsEmail")
-    val userRef = FirebaseFirestore.getInstance().collection("users").document(emaill).collection("Friends")
-
-    val snapshotListener = userRef.addSnapshotListener { snapshot, error ->
-        if (error != null) {
-            this.trySend(emptyList())
-            return@addSnapshotListener
-        }
-
-        if (snapshot != null) {
-            val friendEmails = snapshot.documents.mapNotNull { document ->
-                document.getString("Email")
-            }
-            Log.d("STORE", "Fetched ${friendEmails.size} friends")
-            this.trySend(friendEmails)
-        }
-    }
-
-    awaitClose {
-        Log.d("STORE", "Closing snapshot listener")
-        snapshotListener.remove()
-    }
 }
 

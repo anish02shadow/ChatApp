@@ -37,14 +37,14 @@ class StoreUserEmail(private val context: Context) {
 
     val getEmail: Flow<String> = context.dataStore.data.map { preferences ->
         val email = preferences[USER_EMAIL_KEY] ?: ""
-        Log.d("STORE", "Retrieved email: $email")
+        //Log.d("STORE", "Retrieved email: $email")
         email
     }
 
     suspend fun saveEmail(email: String) {
         context.dataStore.edit { preferences ->
             preferences[USER_EMAIL_KEY] = email
-            Log.d("STORE", "Saved email: $email")
+            //Log.d("STORE", "Saved email: $email")
         }
     }
 }

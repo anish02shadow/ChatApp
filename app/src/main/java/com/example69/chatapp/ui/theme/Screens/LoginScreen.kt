@@ -51,6 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
+import com.example69.chatapp.firebase.storePhoneNumber
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.example69.chatapp.navigation.LOGIN_SCREEN
 import com.example69.chatapp.navigation.SIGNUP_SCREEN
@@ -403,17 +404,3 @@ fun HeaderView() {
     }
 }
 
-suspend fun storePhoneNumber(Email: String) {
-    val db = FirebaseFirestore.getInstance()
-    val userRef = db.collection("users").document(Email)
-
-    val data = hashMapOf(
-        "Email" to Email
-    )
-
-    try {
-        userRef.set(data).await()
-    } catch (e: Exception) {
-         Log.e("STORE", "Error storing phone number: $e")
-    }
-}

@@ -43,6 +43,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.data.StoreUserEmail
+import com.example69.chatapp.firebase.updateNameAndBio
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -168,30 +169,4 @@ fun SignUpScreenEmail(activity: Activity,
         }
     }
 }
-
-suspend fun updateNameAndBio(name: String, bio: String,dataStore: StoreUserEmail) {
-    val emaill = dataStore.getEmail.first()
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid
-
-    if (uid != null) {
-        val db = FirebaseFirestore.getInstance()
-        val userRef = db.collection("users").document(emaill)
-
-        // Create a map with the updated data
-        val data = hashMapOf(
-            "Username" to name,
-            "Bio" to bio
-        )
-
-        try {
-            // Update the data in Firestore
-            userRef.update(data as Map<String, String>).await()
-        } catch (e: Exception) {
-            // Handle any errors here
-            Log.e("STORE", "Error updating name and bio: $e")
-        }
-    }
-}
-
 
