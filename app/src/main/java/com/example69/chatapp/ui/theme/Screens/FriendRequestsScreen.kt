@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalAnimationApi::class)
+
 package com.example69.chatapp.ui.theme.Screens
 
 import androidx.compose.animation.AnimatedContent
@@ -11,73 +13,82 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example69.chatapp.R
+import com.example69.chatapp.animations.FriendRequestCard
 import com.example69.chatapp.data.FriendRequests
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import java.nio.file.WatchEvent
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendRequestsScreen(friendRequests: Flow<List<FriendRequests>>, onAccept: (String) -> Unit) {
 
-    var friendrequests by remember { mutableStateOf(emptyList<FriendRequests>()) }
+    //var friendrequests by remember { mutableStateOf(emptyList<FriendRequests>()) }
+    val friendrequests = remember { mutableStateListOf<FriendRequests>() }
 
     LaunchedEffect(friendRequests) {
             friendRequests.collect { newFriendsEmails ->
-                friendrequests = newFriendsEmails
+                friendrequests.clear()
+                friendrequests.addAll(newFriendsEmails)
             }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Text(
-                text = "Friend Requests",
-                color = Color.Black,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.W300,
-                modifier = Modifier.padding(top = 15.dp, start = 20.dp)
-            )
-            LazyColumn(
-                modifier = Modifier.padding(bottom = 15.dp)
-            ) {
-                items(friendrequests) { request ->
-                    ReplyEmailListItem(email = request.email, username = request.username, bio = request.bio, onAccept = { onAccept(request.email) })
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(text = "Friend Requests")
+                },
+                actions = {
                 }
-
-            }
+            )
         }
+    ) { innerPadding ->
+        FriendRequestsList(
+            modifier = Modifier.padding(innerPadding),
+            friendrequests = friendrequests,
+            onDelete = { friendrequests.remove(it)
+                onAccept(it.email)
+            }
+        )
     }
 }
 
@@ -98,7 +109,7 @@ fun ReplyEmailListItem(
 ) {
     Card(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp,)
             .semantics { selected = isSelected }
             .clip(CardDefaults.shape)
             .combinedClickable(
@@ -163,6 +174,31 @@ fun ReplyEmailListItem(
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp, start = 12.dp),
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+fun FriendRequestsList(
+    modifier: Modifier,
+    friendrequests: MutableList<FriendRequests>,
+    onDelete: (FriendRequests) -> Unit
+) {
+    val lazyListState = rememberLazyListState()
+    LazyColumn(
+        state = lazyListState,
+        modifier = modifier.padding(top = dimensionResource(id = R.dimen.list_top_padding))
+    ) {
+        items(friendrequests.size) { index ->
+            val friendrequest = friendrequests.getOrNull(index)
+            if (friendrequest != null) {
+                key(friendrequest) {
+                    FriendRequestCard(friendRequest = friendrequest) {
+                        onDelete(friendrequest)
+                    }
+                }
+            }
         }
     }
 }

@@ -34,14 +34,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -380,7 +383,7 @@ fun CustomStyleTextField(
 fun HeaderView() {
     Image(
         modifier = Modifier.fillMaxSize(),
-        painter = painterResource(id = R.drawable.ic_launcher_background),
+        painter = painterResource(id = R.drawable.moodiconsfull),
         contentScale = ContentScale.FillWidth,
         contentDescription = "header_view_login_bg"
     )
@@ -393,13 +396,26 @@ fun HeaderView() {
             painter = painterResource(id = R.drawable.ic_launcher_foreground),
             contentDescription = "header_view_moodchat_logo"
         )
+        val text = "MoodChat"
+        val colors = listOf(Color.LightGray, Color.Blue, Color.Magenta, Color.Cyan)
+
+        val styledText = AnnotatedString.Builder().apply {
+            text.forEachIndexed { index, char ->
+                withStyle(
+                    style = SpanStyle(color = colors[index % colors.size])
+                ) {
+                    append(char.toString())
+                }
+            }
+        }.toAnnotatedString()
         Text(
             text = "MoodChat",
-            color = Color.White,
+            color = Color(0xFF1AA57A),
             style = TextStyle(
                 fontSize = 40.sp,
                 letterSpacing = 2.sp
-            )
+            ),
+            fontWeight = FontWeight.Bold
         )
     }
 }

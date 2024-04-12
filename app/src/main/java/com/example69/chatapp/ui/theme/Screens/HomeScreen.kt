@@ -1,3 +1,6 @@
+@file:OptIn(ExperimentalMaterial3Api::class
+)
+
 package com.example69.chatapp.ui.theme.Screens
 
 import android.annotation.SuppressLint
@@ -41,17 +44,20 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-
 import androidx.compose.foundation.layout.Row
-
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,6 +67,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.LightGray
@@ -68,11 +76,16 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import com.example69.chatapp.R
+import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addFriend
+import com.example69.chatapp.firebase.addMood
+import com.example69.chatapp.firebase.getFriendsEmails
+import com.example69.chatapp.firebase.getMood
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -303,7 +316,7 @@ fun CustomStyleTextField2(
                     val text = "Friend Request Sent!"
                     val duration = Toast.LENGTH_SHORT
 
-                    val toast = Toast.makeText(context, text, duration) // in Activity
+                    val toast = Toast.makeText(context, text, duration)
                     toast.show()
                     updatePopUp(false)
                 }
@@ -313,10 +326,11 @@ fun CustomStyleTextField2(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onLogOutPress:() ->Unit = {},
-    friends: Flow<List<Pair<String, String>>>,
+    friends: Flow<Pair<List<FriendsData>,Pair<String?,String>>>,
     email2: String,
     dataStore: StoreUserEmail,
     onClick: (String,String) -> Unit,
@@ -337,20 +351,23 @@ fun HomeScreen(
         mutableStateOf(false)
     }
 
+    val scope = rememberCoroutineScope()
     //var friendsEmails by remember { mutableStateOf(emptyList<String>()) }
 
-    var userdata by remember { mutableStateOf(emptyList<Pair<String,String>>()) }
+    var userdata by remember { mutableStateOf(emptyList<FriendsData>()) }
+
+    var latestMessage by remember { mutableStateOf<String?>(null) }
+    var latestMessageTime by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(friends) {
-        val job = launch {
-            friends.collect { newFriendsEmails ->
-//                friendsEmails = newFriendsEmails.map {
-//                    it.first
-//                }
-                userdata = newFriendsEmails
-            }
+        friends.collect { (friendsList, messageData) ->
+            userdata = friendsList
+            latestMessage = messageData.first ?: ""
+            latestMessageTime = messageData.second
         }
     }
+
+    val sheetState= rememberModalBottomSheetState()
 
     Box(
         modifier = Modifier
@@ -362,7 +379,8 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding()
         ) {
-            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal}, onLogOutPress, onFriendRequests = onFriendRequests)
+            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal}, onLogOutPress, onFriendRequests = onFriendRequests, friends = userdata,
+                sheetState = sheetState, email = email2)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -388,27 +406,39 @@ fun HomeScreen(
                         PopupBox(showPopUp = showPopUp, updatePopUp = {newVal -> showPopUp = newVal}, email = emailState.value,dataStore)
                     }
 
+                    BottomSheet(
+                        sheetState = sheetState,
+                        onDismiss = {
+                            scope.launch {
+                                sheetState.hide()
+                            }
+                        },
+                        email = email2
+                    )
+
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
                     ) {
                         item{
                             UserEachRow(
                                 username = email2,
-                                latestMessage = "Donee",
+                                latestMessage = latestMessage.toString() ,
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = true,
-                                email =email2
+                                email =email2,
+                                latestMessageTime = latestMessageTime.toString()
                             )
                         }
                         items(userdata) { friend ->
                             UserEachRow(
-                                username = friend.second,
-                                latestMessage = "Donee",
+                                username = friend.Username,
+                                latestMessage = friend.lastMessage.toString(),
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = false,
-                                email = friend.first
+                                email = friend.Email,
+                                latestMessageTime = friend.lastMessageTime.toString()
                             )
                         }
                     }
@@ -421,7 +451,9 @@ fun HomeScreen(
 }
 
 @Composable
-fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit) {
+fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit, friends:List<FriendsData>,
+                      sheetState: SheetState,
+                      email: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -446,7 +478,7 @@ fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit,
                 .padding(top = 5.dp)
         ) {
             Header()
-            ViewStoryLayout()
+            ViewStoryLayout(friends = friends, sheetState = sheetState, email = email)
         }
     }
 }
@@ -472,14 +504,25 @@ fun Searchbar(){
 }
 
 @Composable
-fun ViewStoryLayout() {
+fun ViewStoryLayout(friends: List<FriendsData>, sheetState: SheetState,
+                    email: String) {
+
+//    var userdata by remember { mutableStateOf(emptyList<FriendsData>()) }
+//
+//    LaunchedEffect(friends) {
+//            friends.collect { newFriendsEmails ->
+//                userdata = newFriendsEmails
+//        }
+//    }
+
     LazyRow(modifier = Modifier.padding(vertical = 15.dp)) {
         item {
-            AddStoryLayout()
+            AddStoryLayout(sheetState = sheetState, email = email)
             Spacer(modifier = Modifier.width(10.dp))
         }
-        items(7,key = null){
-            UserStory()
+
+        items(friends){ friend ->
+            UserStory(friend = friend)
         }
     }
 }
@@ -494,7 +537,8 @@ fun UserEachRow(
     latestMessage: String,
     onClick: (String,String) -> Unit,
     onNavigateToChat: (Boolean) -> Unit,
-    canChat: Boolean
+    canChat: Boolean,
+    latestMessageTime: String
 ) {
 
     Box(
@@ -503,7 +547,7 @@ fun UserEachRow(
             .background(White)
             .noRippleEffect { signOut() }
             .clickable(onClick = {
-                onClick(email,username)
+                onClick(email, username)
                 onNavigateToChat(canChat)
             })
             .padding(horizontal = 20.dp, vertical = 5.dp),
@@ -514,11 +558,12 @@ fun UserEachRow(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row {
-                   Image(painter = painterResource(id = com.example69.chatapp.R.drawable.ic_launcher_background),
+                   Image(painter = painterResource(id = com.example69.chatapp.R.drawable.cool_icon),
                        contentDescription = "photo of user",
                    modifier = Modifier
                        .size(60.dp)
-                       .clip(CircleShape))
+                       .clip(CircleShape)
+                       .shadow(2.dp, shape = CircleShape))
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
@@ -526,17 +571,17 @@ fun UserEachRow(
                                 color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold
                             ), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
                         )
-                        Spacer(modifier = Modifier.height(5.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = latestMessage, style = TextStyle(
                                 color = Gray, fontSize = 14.sp
-                            )
+                            ),maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
                         )
                     }
 
                 }
                 Text(
-                    text ="12:25 pm", style = TextStyle(
+                    text = latestMessageTime, style = TextStyle(
                         color = Gray, fontSize = 12.sp
                     )
                 )
@@ -550,39 +595,71 @@ fun UserEachRow(
 
 @Composable
 fun UserStory(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    friend: FriendsData
 ) {
     Column(
         modifier = modifier.padding(end = 10.dp)
     ) {
         Box(
             modifier = Modifier
-                .border(1.dp, Yellow, CircleShape)
+                .border(1.dp, Color.Cyan, CircleShape)
                 .background(Yellow, shape = CircleShape)
                 .size(70.dp),
             contentAlignment = Alignment.Center
         ) {
-            Image(painter = painterResource(id = com.example69.chatapp.R.drawable.ic_launcher_background),
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape),
-                contentDescription = "Photo of user")
+            val drawableId = getDrawableIdByText(friend.Mood.toString())
+            if (drawableId.equals("null")) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher_background),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape),
+                    contentDescription = "Mood of user"
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = drawableId),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape),
+                    contentDescription = "Mood of user"
+                )
+            }
+        }
+
+        val displayText = buildAnnotatedString {
+            append(friend.Username.take(8))
+            if (friend.Username.length > 8) {
+                addStyle(style = SpanStyle(color = Black), start = 8, end = friend.Username.length)
+                append("...")
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Anish", style = TextStyle(
+            text = displayText, style = TextStyle(
                 color = Black, fontSize = 13.sp,
-            ), modifier = Modifier.align(CenterHorizontally)
+            ), modifier = Modifier
+                .align(CenterHorizontally)
         )
-
     }
 }
 
 
+
 @Composable
 fun AddStoryLayout(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sheetState: SheetState,
+    email: String
 ) {
+
+    val scope = rememberCoroutineScope()
+    val mood = produceState<String?>(initialValue = null) {
+        getMood(email).collect { value ->
+            this.value = value
+        }
+    }
     Column(
         modifier = modifier
     ) {
@@ -593,30 +670,53 @@ fun AddStoryLayout(
                 .size(70.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(20.dp)
-                    .background(Black, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(onClick = { /*TODO*/ },) {
-                    Icon(Icons.Default.Add,
-                        tint = Yellow,
-                        modifier = Modifier.size(12.dp),
-                        contentDescription = "Add Story")
+            val drawableId = getDrawableIdByText(mood.value.orEmpty())
+            if(drawableId == R.drawable.ic_launcher_background) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .background(Black, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = {
+                        scope.launch {
+                            sheetState.show()
+                        }
+                    },) {
+                        Icon(
+                            Icons.Default.Add,
+                            tint = Yellow,
+                            modifier = Modifier.size(12.dp),
+                            contentDescription = "Add Mood")
+                    }
+
                 }
+            }
+            else{
+                Image(painter = painterResource(id = drawableId), contentDescription = "Mood" , modifier = Modifier.clip(
+                    CircleShape).fillMaxSize().clickable { scope.launch { sheetState.show() } })
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Add Story", style = TextStyle(
+            text = "Add Mood", style = TextStyle(
                 color = Black, fontSize = 13.sp,
-            ), modifier = Modifier.align(CenterHorizontally)
+            ), modifier = Modifier.align(CenterHorizontally),
+            fontWeight = FontWeight.Bold
         )
 
     }
-
 }
+
+fun getDrawableIdByText(searchText: String): Int {
+    for ((drawableId, text) in moodicons) {
+        if (text == searchText) {
+            return drawableId
+        }
+    }
+    return R.drawable.ic_launcher_background
+}
+
 
 @Composable
 fun Header() {
@@ -657,7 +757,7 @@ fun signOut() {
 @SuppressLint("UnnecessaryComposedModifier", "ModifierFactoryUnreferencedReceiver")
 fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
     clickable(
-        interactionSource = MutableInteractionSource(),
+        interactionSource = remember{MutableInteractionSource()},
         indication = null
     ) {
         onClick()
@@ -665,6 +765,84 @@ fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BottomSheet( sheetState: SheetState,
+                 onDismiss: () -> Unit,
+                 email: String){
+
+    if (sheetState.isVisible) {
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = onDismiss,
+        ) {
+            MoodIconsList(email = email, onDismiss = onDismiss)
+        }
+    }
+
+}
+
+
+
+@Composable
+fun MoodIconsList(email: String,onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.padding(top = 28.dp),
+    ) {
+        items(moodicons) { (drawableId, name) ->
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Card(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .align(Alignment.CenterHorizontally),
+                ) {
+                    Image(painter = painterResource(id = drawableId), contentDescription = "Icons",
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .fillMaxSize(0.55f)
+                            .clip(CircleShape)
+                            .clickable {
+                                scope.launch {
+                                    addMood(mood = name, email = email)
+                                    onDismiss()
+                                }
+                            }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+val moodicons = listOf(
+    Pair(R.drawable.blush_icon, "Rising Temperature"),
+    Pair(R.drawable.angry_icon, "Broken Stick"),
+    Pair(R.drawable.confused_icon, "Oonga Boonga"),
+    Pair(R.drawable.bruh_icon, "Cricket voices"),
+    Pair(R.drawable.cool_icon, "Legendary Player"),
+    Pair(R.drawable.crazy_icon, "Cheese Maggie"),
+    Pair(R.drawable.crying_icon, "Crying"),
+    Pair(R.drawable.fever_icon, "Fever"),
+    Pair(R.drawable.happy_icon, "Happy"),
+    Pair(R.drawable.nervous_icon, "Nervous"),
+    Pair(R.drawable.sarcasm_icon, "Saracasm Incarnation"),
+    Pair(R.drawable.sleepy_icon, "Sleepy"),
+    Pair(R.drawable.surprised_icon, "Surprised"),
+    Pair(R.drawable.tensed_icon, "Dead Inside"),
+)
 
 
 

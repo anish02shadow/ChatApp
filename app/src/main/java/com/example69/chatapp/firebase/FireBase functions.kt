@@ -2,27 +2,24 @@ package com.example69.chatapp.firebase
 
 import android.os.Build
 import android.util.Log
-import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.compose.ui.platform.LocalContext
 import com.example69.chatapp.data.FriendRequests
+import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 
 suspend fun addFriend(email: String, textState: String, dataStore: StoreUserEmail) {
@@ -122,13 +119,15 @@ suspend fun updateNameAndBio(name: String, bio: String,dataStore: StoreUserEmail
 
         // Create a map with the updated data
         val data = hashMapOf(
+            "Email" to emaill,
             "Username" to name,
-            "Bio" to bio
+            "Bio" to bio,
+            "Mood" to "null"
         )
 
         try {
             // Update the data in Firestore
-            userRef.update(data as Map<String, String>).await()
+            userRef.set(data).await()
         } catch (e: Exception) {
             // Handle any errors here
             Log.e("STORE", "Error updating name and bio: $e")
@@ -206,27 +205,35 @@ fun retrieveMessages(email: String): Flow<List<Message>> = callbackFlow {
 }
 
 
-fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<List<Pair<String, String>>> = flow {
+fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<Pair<List<FriendsData>,Pair<String?,String>>> = flow {
     val email = dataStore.getEmail.first()
     Log.d("STORE", "Fetched $email in getFriendsEmailsAndUsernames")
     val db = FirebaseFirestore.getInstance()
-    val friendEmailsAndUsernames = mutableListOf<Pair<String, String>>()
+    val friendEmailsAndUsernames = mutableListOf<FriendsData>()
+    val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+    val userResult = db.collection("users").document(email).collection("Messages").orderBy("timestamp", Query.Direction.DESCENDING).get().await()
+    val userLatestMessage = userResult.documents.getOrNull(0)?.getString("message") ?: "No Messages"
+    val userLatestMessageTime = userResult.documents.getOrNull(0)?.getTimestamp("timestamp")?.toDate()?.let { dateFormat.format(it) } ?: "00:00"
 
     val result = db.collection("users").document(email).collection("Friends").get().await()
     for (document in result.documents) {
         val friendEmail = document.getString("Email")
         val status = document.getBoolean("Status")
-        if (friendEmail != null) {
+        if (friendEmail != null && status == true) {
             val friendData = db.collection("users").document(friendEmail).get().await()
+            val friendMessagesRef = db.collection("users").document(friendEmail).collection("Messages").orderBy("timestamp", Query.Direction.DESCENDING).limit(1).get().await()
             val username = friendData.getString("Username")
-            Log.d("STORE", "FriendEmail is $status & $username is cirrenttt")
-            if (username != null && status == true) {
-                friendEmailsAndUsernames.add(Pair(friendEmail, username))
+            val mood = friendData.getString("Mood")
+            val lastmessage = friendMessagesRef.documents.getOrNull(0)?.getString("message") ?: "No Messages"
+            val lastmessagetime = friendMessagesRef.documents.getOrNull(0)?.getTimestamp("timestamp")?.toDate()?.let { dateFormat.format(it) } ?: "00:00"
+            Log.d("STORE", "FriendEmail is $status & $username is cirrenttt & $lastmessage is LAST mEsaage")
+            if (username != null) {
+                friendEmailsAndUsernames.add(FriendsData(Username = username, Email = friendEmail, Mood = mood, lastMessage = lastmessage, lastMessageTime = lastmessagetime.toString() ))
             }
         }
     }
-
-    emit(friendEmailsAndUsernames)
+    emit(friendEmailsAndUsernames to (userLatestMessage to userLatestMessageTime))
 }
 
 fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = flow {
@@ -265,8 +272,8 @@ suspend fun acceptFriendRequest(email: String, dataStore: StoreUserEmail) {
     val friendRef = db.collection("users").document(email).collection("Friends")
 
     val requestDocument = userRequestsRef.document(email)
-    val requestDocument2 = friendRef.document(email)
-    val requestDocument3 = userFriendsRef.document(currentUserEmail)
+    val requestDocument2 = friendRef.document(currentUserEmail)
+    val requestDocument3 = userFriendsRef.document(email)
 
     val requestData = hashMapOf(
         "Email" to email,
@@ -286,3 +293,31 @@ suspend fun acceptFriendRequest(email: String, dataStore: StoreUserEmail) {
         Log.e("STORE", "Error accepting friend request: $e")
     }
 }
+
+suspend fun addMood(email: String, mood: String){
+//    val currentUserEmail = dataStore.getEmail.first()
+    val db = FirebaseFirestore.getInstance()
+    val userRequestsRef = db.collection("users").document(email)
+
+    val data = hashMapOf(
+        "Mood" to mood
+    )
+
+    try{
+        userRequestsRef.set(data, SetOptions.merge()).await()
+        Log.d("STORE", "Mood SET")
+    } catch (e: Exception) {
+        Log.e("STORE", "Error setting Mood: $e")
+    }
+}
+
+fun getMood(email: String): Flow<String?> = flow{
+    Log.e("Mood", "Mood email is $email")
+    val db = FirebaseFirestore.getInstance()
+    val userRequestsRef = db.collection("users").document(email).get().await()
+
+    val Mood = userRequestsRef.getString("Mood")
+    Log.e("Mood", "Mood is $Mood")
+    emit(Mood)
+}
+
