@@ -10,12 +10,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -26,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -378,6 +382,81 @@ fun CustomStyleTextField(
         visualTransformation = visualTransformation
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomStyleTextFieldPassword(
+    textState: String,
+    placeHolder: String,
+    leadingIconId: Int,
+    keyboardType: KeyboardType,
+    visualTransformation: VisualTransformation,
+    onTextChange: (String) -> Unit
+) {
+
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    OutlinedTextField(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White),
+        value = textState,
+        onValueChange = { valueChanged ->
+            //textState = valueChanged // Update the local state
+            onTextChange(valueChanged) // Call the callback function to update external state
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        placeholder = { Text(text = placeHolder) },
+        leadingIcon = {
+            Row(
+                modifier = Modifier.wrapContentWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                content = {
+                    Image(
+                        modifier = Modifier
+                            .padding(start = 10.dp, end = 10.dp)
+                            .size(18.dp),
+                        painter = painterResource(id = leadingIconId),  // material icon
+                        colorFilter = ColorFilter.tint(Color(0xFF1BA57B)),
+                        contentDescription = "custom_text_field"
+                    )
+                    Canvas(
+                        modifier = Modifier.height(24.dp)
+                    ) {
+                        // Allows you to draw a line between two points (p1 & p2) on the canvas.
+                        drawLine(
+                            color = Color.LightGray,
+                            start = Offset(0f, 0f),
+                            end = Offset(0f, size.height),
+                            strokeWidth = 2.0F
+                        )
+                    }
+                }
+            )
+        },
+        colors = TextFieldDefaults.outlinedTextFieldColors(
+            focusedBorderColor = Color(0xFF1BA57B),
+            unfocusedBorderColor = Color.Transparent,
+            focusedLabelColor = Color.White,
+            //trailingIconColor = Color.White,
+//            disabledTextColor = NaviBlue
+        ),
+        shape = RoundedCornerShape(10.dp),
+        textStyle = TextStyle(color = Color.Black, fontSize = 16.sp),
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            val image = if (passwordVisible)
+                R.drawable.baseline_visibility_24
+            else  R.drawable.baseline_visibility_off_24
+
+            val description = if (passwordVisible) "Hide password" else "Show password"
+
+            IconButton(onClick = {passwordVisible = !passwordVisible}){
+                Image(painter = painterResource(id = image), contentDescription = description)
+            }
+        }
+    )
+}
+
 
 @Composable
 fun HeaderView() {

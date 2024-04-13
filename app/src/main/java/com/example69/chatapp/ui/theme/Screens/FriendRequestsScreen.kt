@@ -2,6 +2,7 @@
 
 package com.example69.chatapp.ui.theme.Screens
 
+import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -59,23 +60,26 @@ import androidx.compose.ui.unit.sp
 import com.example69.chatapp.R
 import com.example69.chatapp.animations.FriendRequestCard
 import com.example69.chatapp.data.FriendRequests
+import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.nio.file.WatchEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendRequestsScreen(friendRequests: Flow<List<FriendRequests>>, onAccept: (String) -> Unit) {
+fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String) -> Unit,viewModel: MainViewModel) {
 
     //var friendrequests by remember { mutableStateOf(emptyList<FriendRequests>()) }
     val friendrequests = remember { mutableStateListOf<FriendRequests>() }
+    friendrequests.addAll(friendRequests)
+    Log.e("req","fr size is ${friendRequests.size} and fr is: $friendRequests")
 
-    LaunchedEffect(friendRequests) {
-        friendRequests.collect { newFriendsEmails ->
-            friendrequests.clear()
-            friendrequests.addAll(newFriendsEmails)
-        }
-    }
+//    LaunchedEffect(friendRequests) {
+//        friendRequests.collect { newFriendsEmails ->
+//            friendrequests.clear()
+//            friendrequests.addAll(newFriendsEmails)
+//        }
+//    }
 
     Scaffold(
         topBar = {
@@ -105,6 +109,8 @@ fun FriendRequestsScreen(friendRequests: Flow<List<FriendRequests>>, onAccept: (
                 onDelete = {
                     friendrequests.remove(it)
                     onAccept(it.email)
+                    viewModel.getFriendsAndMessages()
+                    viewModel.getPhotoUrls()
                 }
             )
         }

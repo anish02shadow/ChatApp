@@ -4,6 +4,7 @@ import android.app.Activity
 import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -99,12 +101,10 @@ fun SignUpScreenEmail(activity: Activity,
                 .fillMaxSize(),
             colors = CardDefaults.cardColors(
                 containerColor = Color(0xFFF8F8F8),
-            )
+            ),
         ){
-            Row(horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically) {
                 PhotoPickerCard(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(16.dp, top = 28.dp).align(Alignment.CenterHorizontally),
                     photoUri = selectedPhotoUri,
                     onPhotoSelected = { uri ->
                         selectedPhotoUri = uri
@@ -113,7 +113,7 @@ fun SignUpScreenEmail(activity: Activity,
                         selectedPhotobitmap = bitmap
                     }
                 )
-            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -155,7 +155,7 @@ fun SignUpScreenEmail(activity: Activity,
                     KeyboardType.Text,
                     VisualTransformation.None,
                     onTextChange = { newText ->
-                        if (newText.length <= 200) { // Limit to 20 characters
+                        if (newText.length <= 200) { // Limit to 200 characters
                             bioState = newText
                         }
                     }
@@ -163,17 +163,26 @@ fun SignUpScreenEmail(activity: Activity,
 
                 var hasUserInteracted: Boolean by remember { mutableStateOf(false) }
 //                val scope = rememberCoroutineScope()
+                val context = LocalContext.current
                 Button(
                     onClick = {
                         hasUserInteracted = true
-                        scope.launch {
-                            selectedPhotobitmap?.let {
-                                updateNameAndBio(nameState, bioState, dataStore,
-                                    it
-                                )
-                            }
-                            Log.e("STORE","CALLED NAVIGATEHOME")
-                            onNavigateToHome()}
+                        if (nameState.isBlank()) {
+                            Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT).show()
+                        }
+                        else if (bioState.isBlank()) {
+                            Toast.makeText(context, "Please enter a bio", Toast.LENGTH_SHORT).show()
+                        }
+                        else{
+                            scope.launch {
+                                selectedPhotobitmap?.let {
+                                    updateNameAndBio(nameState, bioState, dataStore,
+                                        it
+                                    )
+                                }
+                                Log.e("STORE","CALLED NAVIGATEHOME")
+                                onNavigateToHome()}
+                        }
                         },
                     modifier = Modifier
                         .padding(top = 30.dp, bottom = 34.dp)

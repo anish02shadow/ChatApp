@@ -42,6 +42,7 @@ import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -105,6 +106,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
+import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
+import kotlinx.coroutines.flow.collectIndexed
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -347,7 +350,7 @@ fun HomeScreen(
     friends: List<FriendsData>,
     email2: String,
     dataStore: StoreUserEmail,
-    onClick: (String,String) -> Unit,
+    onClick: (String,String, String) -> Unit,
     onNavigateToChat: (Boolean?) -> Unit,
     onFriendRequests: () ->Unit,
     photoUrls: List<String>,
@@ -355,8 +358,16 @@ fun HomeScreen(
     userProfileImage: String,
     onFriendsChange: (List<FriendsData>) ->Unit,
     onUserMessageStateChange: (Pair<String?, String>) ->Unit,
+    viewModel: MainViewModel,
+    moodOn: String?
 
 ) {
+
+//        val mood2 = produceState<String?>(initialValue = null) {
+//        getMood(email2).collect { value ->
+//            this.value = value
+//        }
+//    }
 
     val emailState = remember { mutableStateOf("") }
     //val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
@@ -383,6 +394,10 @@ fun HomeScreen(
     var latestMessage by remember { mutableStateOf(userMessagesState.first) }
     var latestMessageTime by remember { mutableStateOf(userMessagesState.second) }
 
+    var mood by remember {
+        mutableStateOf(moodOn)
+    }
+
 //    LaunchedEffect(friends) {
 //        friends.collect { (friendsList, messageData) ->
 //            userdata = friendsList
@@ -405,14 +420,21 @@ fun HomeScreen(
     val pullRefreshState = rememberPullToRefreshState()
     if (pullRefreshState.isRefreshing) {
         val friendemails = getFriendsEmails(emailState.value, dataStore)
+        val getmood = getMood(email2)
         LaunchedEffect(true) {
+            Log.e("Refresh", "Collecting FRIENDEMAILS HomeScreen")
             friendemails.collect { (friendsList, messageData) ->
                 userdata = friendsList
                 latestMessage = messageData.first ?: ""
                 latestMessageTime = messageData.second
             }
+            getmood.collect{ moodnew ->
+                mood = moodnew
+            }
+            viewModel.getmood(email2)
             onFriendsChange(userdata)
             onUserMessageStateChange(latestMessage to latestMessageTime)
+            viewModel.getFriendsAndMessages()
             pullRefreshState.endRefresh()
         }
         Log.e("Refresh", "Refesh done and updateddd OUTSIDE: $latestMessage")
@@ -434,7 +456,8 @@ fun HomeScreen(
                 onFriendRequests = onFriendRequests,
                 friends = userdata,
                 sheetState = sheetState,
-                email = email2
+                email = email2,
+                mood = mood
             )
             Box(
                 modifier = Modifier
@@ -473,7 +496,11 @@ fun HomeScreen(
                                 sheetState.hide()
                             }
                         },
-                        email = email2
+                        email = email2,
+                        onMoodChange = {newVal ->
+                            mood = newVal
+                        }
+
                     )
 
                     val userDataWithPhotos: List<Pair<FriendsData, String>> =
@@ -518,10 +545,11 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit, friends:List<FriendsData>,
                       sheetState: SheetState,
-                      email: String) {
+                      email: String, mood: String?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -546,7 +574,7 @@ fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit,
                 .padding(top = 5.dp)
         ) {
             Header()
-            ViewStoryLayout(friends = friends, sheetState = sheetState, email = email)
+            ViewStoryLayout(friends = friends, sheetState = sheetState, email = email, mood = mood)
         }
     }
 }
@@ -573,7 +601,7 @@ fun Searchbar(){
 
 @Composable
 fun ViewStoryLayout(friends: List<FriendsData>, sheetState: SheetState,
-                    email: String) {
+                    email: String, mood: String?) {
 
 //    var userdata by remember { mutableStateOf(emptyList<FriendsData>()) }
 //
@@ -585,7 +613,7 @@ fun ViewStoryLayout(friends: List<FriendsData>, sheetState: SheetState,
 
     LazyRow(modifier = Modifier.padding(vertical = 15.dp)) {
         item {
-            AddStoryLayout(sheetState = sheetState, email = email)
+            AddStoryLayout(sheetState = sheetState, email = email, mood = mood)
             Spacer(modifier = Modifier.width(10.dp))
         }
 
@@ -603,24 +631,27 @@ fun UserEachRow(
     username: String,
     email: String,
     latestMessage: String,
-    onClick: (String,String) -> Unit,
+    onClick: (String,String, String) -> Unit,
     onNavigateToChat: (Boolean) -> Unit,
     canChat: Boolean,
     latestMessageTime: String,
     photourl: String
 ) {
-    val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current)
-            .data(photourl)
-            .build()
-    )
+    val color = remember { mutableStateOf(pickRandomColor()) }
+    Log.e("photo", "Photo is: $photourl")
+        val painter = rememberAsyncImagePainter(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(photourl)
+                .build()
+        )
+    val scope  = rememberCoroutineScope()
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(White)
             .noRippleEffect { signOut() }
             .clickable(onClick = {
-                onClick(email, username)
+                onClick(email, username, photourl)
                 onNavigateToChat(canChat)
             })
             .padding(horizontal = 20.dp, vertical = 5.dp),
@@ -631,33 +662,54 @@ fun UserEachRow(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row {
-                    Box(
-                        modifier = Modifier
-                            .size(60.dp) // Set the box size to 60.dp
-                            .clip(CircleShape) // Clip the content of the box to a circle
-                            .shadow(2.dp, shape = CircleShape) // Add circular shadow
-                    ) {
-                        Image(
-                            painter = painter,
-                            contentDescription = "Photo of user",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                    if(photourl.equals("No Photo")){
+                        Card(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .size(60.dp)
+                                .shadow(2.dp, shape = CircleShape),
+                                colors = CardColors(containerColor = color.value, contentColor = Color.Black, disabledContainerColor = Color.Transparent, disabledContentColor = Color.Transparent)
+                        ) {
+                            Text(
+                                text = username[0].toString(),
+                                style = MaterialTheme.typography.headlineMedium,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(12.dp)
+                                    .size(24.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = username, style = TextStyle(
-                                color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold
-                            ), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = latestMessage, style = TextStyle(
-                                color = Gray, fontSize = 14.sp
-                            ),maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
-                        )
+                    else {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .shadow(2.dp, shape = CircleShape)
+                        ) {
+                            Image(
+                                painter = painter,
+                                contentDescription = "Photo of user",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = username, style = TextStyle(
+                                    color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                                ), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = latestMessage, style = TextStyle(
+                                    color = Gray, fontSize = 14.sp
+                                ),maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
+                            )
+                        }
 
                 }
                 Text(
@@ -731,15 +783,16 @@ fun UserStory(
 fun AddStoryLayout(
     modifier: Modifier = Modifier,
     sheetState: SheetState,
-    email: String
+    email: String,
+    mood: String?
 ) {
 
-    val scope = rememberCoroutineScope()
-    val mood = produceState<String?>(initialValue = null) {
-        getMood(email).collect { value ->
-            this.value = value
-        }
-    }
+      val scope = rememberCoroutineScope()
+//    val mood = produceState<String?>(initialValue = null) {
+//        getMood(email).collect { value ->
+//            this.value = value
+//        }
+//    }
     Column(
         modifier = modifier
     ) {
@@ -750,8 +803,8 @@ fun AddStoryLayout(
                 .size(70.dp),
             contentAlignment = Alignment.Center
         ) {
-            val drawableId = getDrawableIdByText(mood.value.orEmpty())
-            if(drawableId == R.drawable.ic_launcher_background) {
+            val drawableId = getDrawableIdByText(mood)
+            if(mood.equals("No Photo")) {
                 Box(
                     modifier = Modifier
                         .size(20.dp)
@@ -792,7 +845,7 @@ fun AddStoryLayout(
     }
 }
 
-fun getDrawableIdByText(searchText: String): Int {
+fun getDrawableIdByText(searchText: String?): Int {
     for ((drawableId, text) in moodicons) {
         if (text == searchText) {
             return drawableId
@@ -853,14 +906,15 @@ fun Modifier.noRippleEffect(onClick: () -> Unit) = composed {
 @Composable
 fun BottomSheet( sheetState: SheetState,
                  onDismiss: () -> Unit,
-                 email: String){
+                 email: String,
+                 onMoodChange: (String) -> Unit){
 
     if (sheetState.isVisible) {
         ModalBottomSheet(
             sheetState = sheetState,
             onDismissRequest = onDismiss,
         ) {
-            MoodIconsList(email = email, onDismiss = onDismiss)
+            MoodIconsList(email = email, onDismiss = onDismiss, onMoodChange = onMoodChange)
         }
     }
 
@@ -869,7 +923,7 @@ fun BottomSheet( sheetState: SheetState,
 
 
 @Composable
-fun MoodIconsList(email: String,onDismiss: () -> Unit) {
+fun MoodIconsList(email: String,onDismiss: () -> Unit, onMoodChange: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -892,6 +946,7 @@ fun MoodIconsList(email: String,onDismiss: () -> Unit) {
                             .clip(CircleShape)
                             .clickable {
                                 scope.launch {
+                                    onMoodChange(name)
                                     addMood(mood = name, email = email)
                                     onDismiss()
                                 }
@@ -926,6 +981,14 @@ val moodicons = listOf(
     Pair(R.drawable.sleepy_icon, "Sleepy"),
     Pair(R.drawable.surprised_icon, "Surprised"),
     Pair(R.drawable.tensed_icon, "Dead Inside"),
+)
+
+fun pickRandomColor() = Color(
+    arrayListOf(
+        0xFFE57373, 0xFFBA68C8, 0xFF9575CD, 0xFFF06292,
+        0xFF64B5F6, 0xFF4DD0E1, 0xFFFF8A65,
+        0xFFFFD54F, 0xFF81C784, 0xFFFFF176,
+    ).random()
 )
 
 

@@ -18,6 +18,8 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,8 +37,11 @@ import androidx.compose.ui.Alignment.Companion.BottomCenter
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -46,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.core.DataStore
 import androidx.navigation.NavHostController
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.example69.chatapp.R
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
@@ -77,15 +84,19 @@ import java.util.Locale
 @Composable
 fun ChatScreen(
     email: String,
+    //messages: List<Message>,
     messages: Flow<List<Message>>,
     friendUsername: String?,
     canChat: Boolean?,
     dataStore: StoreUserEmail,
-    onDeleteNavigateHome: () ->Unit
+    onDeleteNavigateHome: () ->Unit,
+    photourl: String
 ) {
 
     val lazyListState = rememberLazyListState()
     var message by remember { mutableStateOf("") }
+
+    //var Messages by remember { mutableStateOf(messages) }
 
     var Messages by remember { mutableStateOf(emptyList<Message>()) }
 
@@ -99,6 +110,11 @@ fun ChatScreen(
             }
         }
     }
+//    LaunchedEffect(messages) {
+//        if (Messages.isNotEmpty()) {
+//            lazyListState.scrollToItem(Messages.size - 1)
+//        }
+//    }
 
     Box(
         modifier = Modifier
@@ -114,7 +130,8 @@ fun ChatScreen(
                     name = it,
                     dataStore = dataStore ,
                     email = email,
-                    onDeleteNavigateHome = onDeleteNavigateHome
+                    onDeleteNavigateHome = onDeleteNavigateHome,
+                    photourl = photourl
                 )
             }
             Box(
@@ -379,8 +396,18 @@ fun UserNameRow(
     name: String,
     email: String,
     dataStore: StoreUserEmail,
-    onDeleteNavigateHome: () ->Unit
+    onDeleteNavigateHome: () ->Unit,
+    photourl: String
+
 ) {
+    val color = remember { mutableStateOf(pickRandomColor()) }
+    Log.e("twophotu", "Photo is: $photourl")
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(LocalContext.current)
+            .data(photourl)
+            .build()
+    )
+
     val emailState = remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
@@ -393,24 +420,56 @@ fun UserNameRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row {
-
-            Image(
-                painter = painterResource(id = com.example69.chatapp.R.drawable.ic_launcher_background),
-                contentDescription = "photo of user",
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-                Text(
-                    text = name, style = TextStyle(
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    ),
-                    modifier = Modifier.padding(top = 15.dp)
+            if(!photourl.equals("No Photo")) {
+                Image(
+                    painter = painter,
+                    contentDescription = "photo of user",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = name, style = TextStyle(
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        ),
+                        modifier = Modifier.padding(top = 15.dp)
+                    )
+                }
+            }
+            else{
+                Card(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .size(48.dp)
+                        .shadow(2.dp, shape = CircleShape),
+                    colors = CardColors(containerColor = color.value, contentColor = Color.Black, disabledContainerColor = Color.Transparent, disabledContentColor = Color.Transparent)
+                ) {
+                    Text(
+                        text = name[0].toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(6.dp)
+                            .size(18.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = name, style = TextStyle(
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        ),
+                        modifier = Modifier.padding(top = 15.dp)
+                    )
+                }
             }
         }
         var Expanded by rememberSaveable {

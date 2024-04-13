@@ -156,7 +156,7 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                                 modifier = Modifier.padding(bottom = 10.dp, top = 20.dp)
                             )
                             var otpState by remember { mutableStateOf("") }
-                            CustomStyleTextField(
+                            CustomStyleTextFieldPassword(
                                 textState=otpState,
                                 "Enter Password",
                                 R.drawable.baseline_password_24,
