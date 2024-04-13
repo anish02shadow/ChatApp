@@ -106,6 +106,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
+import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import kotlinx.coroutines.flow.collectIndexed
 
@@ -359,7 +360,8 @@ fun HomeScreen(
     onFriendsChange: (List<FriendsData>) ->Unit,
     onUserMessageStateChange: (Pair<String?, String>) ->Unit,
     viewModel: MainViewModel,
-    moodOn: String?
+    moodOn: String?,
+    colorViewModel: ColorViewModel
 
 ) {
 
@@ -518,7 +520,8 @@ fun HomeScreen(
                                 canChat = true,
                                 email = email2,
                                 latestMessageTime = latestMessageTime.toString(),
-                                photourl = userPhotoUrl
+                                photourl = userPhotoUrl,
+                                colorViewModel = colorViewModel
                             )
                         }
                         items(userDataWithPhotos) { (friend, photoUrl) ->
@@ -530,7 +533,8 @@ fun HomeScreen(
                                 canChat = false,
                                 email = friend.Email,
                                 latestMessageTime = friend.lastMessageTime.toString(),
-                                photourl = photoUrl
+                                photourl = photoUrl,
+                                colorViewModel = colorViewModel
                             )
                         }
                     }
@@ -635,9 +639,10 @@ fun UserEachRow(
     onNavigateToChat: (Boolean) -> Unit,
     canChat: Boolean,
     latestMessageTime: String,
-    photourl: String
+    photourl: String,
+    colorViewModel: ColorViewModel
 ) {
-    val color = remember { mutableStateOf(pickRandomColor()) }
+    val color = remember { mutableStateOf(colorViewModel.getColor(email)) }
     Log.e("photo", "Photo is: $photourl")
         val painter = rememberAsyncImagePainter(
             model = ImageRequest.Builder(LocalContext.current)

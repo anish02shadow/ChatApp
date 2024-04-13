@@ -36,6 +36,7 @@ import com.example69.chatapp.firebase.getMood
 import com.example69.chatapp.firebase.retrieveMessages
 import com.example69.chatapp.ui.theme.Screens.FriendRequestsScreen
 import com.example69.chatapp.ui.theme.Screens.SignUpScreenEmail
+import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModelFactory
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +50,8 @@ import kotlinx.coroutines.withContext
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainNavigation(activity: MainActivity) {
+    val colorViewModel = viewModel<ColorViewModel>()
+
     val navController = rememberNavController()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -189,7 +192,8 @@ fun MainNavigation(activity: MainActivity) {
                                 onFriendsChange = {newVal -> friendsList = newVal},
                                 onUserMessageStateChange = {newVal -> userMessagesState = newVal},
                                 viewModel = viewModel,
-                                moodOn = viewModel.MOOD.value
+                                moodOn = viewModel.MOOD.value,
+                                colorViewModel = colorViewModel
                             )
                         }
                     }
@@ -212,7 +216,8 @@ fun MainNavigation(activity: MainActivity) {
                     backStackEntry.arguments?.getBoolean("canChat"),
                     dataStore,
                     { navController.navigate(HOME_SCREEN) },
-                    photoURL.value
+                    photoURL.value,
+                    colorViewModel
                 )
             }
         }

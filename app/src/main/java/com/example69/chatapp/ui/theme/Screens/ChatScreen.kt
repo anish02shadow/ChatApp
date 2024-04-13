@@ -59,6 +59,7 @@ import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addChat
 import com.example69.chatapp.firebase.deleteFriend
 import com.example69.chatapp.ui.theme.*
+import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -90,7 +91,8 @@ fun ChatScreen(
     canChat: Boolean?,
     dataStore: StoreUserEmail,
     onDeleteNavigateHome: () ->Unit,
-    photourl: String
+    photourl: String,
+    colorViewModel: ColorViewModel
 ) {
 
     val lazyListState = rememberLazyListState()
@@ -131,7 +133,8 @@ fun ChatScreen(
                     dataStore = dataStore ,
                     email = email,
                     onDeleteNavigateHome = onDeleteNavigateHome,
-                    photourl = photourl
+                    photourl = photourl,
+                    colorViewModel = colorViewModel
                 )
             }
             Box(
@@ -397,10 +400,12 @@ fun UserNameRow(
     email: String,
     dataStore: StoreUserEmail,
     onDeleteNavigateHome: () ->Unit,
-    photourl: String
+    photourl: String,
+    colorViewModel: ColorViewModel
+
 
 ) {
-    val color = remember { mutableStateOf(pickRandomColor()) }
+    val color = remember { mutableStateOf(colorViewModel.getColor(email)) }
     Log.e("twophotu", "Photo is: $photourl")
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
