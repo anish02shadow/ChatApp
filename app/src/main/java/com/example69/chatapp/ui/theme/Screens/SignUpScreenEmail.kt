@@ -134,8 +134,10 @@ fun SignUpScreenEmail(activity: Activity,
                     R.drawable.baseline_assignment_ind_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
-                    onTextChange = {newText->
-                        nameState = newText
+                    onTextChange = { newText ->
+                        if (newText.length <= 20) { // Limit to 20 characters
+                            nameState = newText
+                        }
                     }
                 )
 
@@ -152,8 +154,10 @@ fun SignUpScreenEmail(activity: Activity,
                     R.drawable.baseline_border_color_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
-                    onTextChange = {newText->
-                        bioState = newText
+                    onTextChange = { newText ->
+                        if (newText.length <= 200) { // Limit to 20 characters
+                            bioState = newText
+                        }
                     }
                 )
 

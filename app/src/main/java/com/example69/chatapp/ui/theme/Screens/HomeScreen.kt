@@ -58,6 +58,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -75,6 +77,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.LightGray
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
@@ -92,11 +95,16 @@ import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addFriend
 import com.example69.chatapp.firebase.addMood
 import com.example69.chatapp.firebase.getFriendsEmails
+import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.firebase.getMood
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.LaunchedEffect
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -336,13 +344,18 @@ fun CustomStyleTextField2(
 @Composable
 fun HomeScreen(
     onLogOutPress:() ->Unit = {},
-    friends: Flow<Pair<List<FriendsData>,Pair<String?,String>>>,
+    friends: List<FriendsData>,
     email2: String,
     dataStore: StoreUserEmail,
     onClick: (String,String) -> Unit,
     onNavigateToChat: (Boolean?) -> Unit,
     onFriendRequests: () ->Unit,
-    photoUrls: Flow<Pair<List<String>,String>>
+    photoUrls: List<String>,
+    userMessagesState: Pair<String?, String>,
+    userProfileImage: String,
+    onFriendsChange: (List<FriendsData>) ->Unit,
+    onUserMessageStateChange: (Pair<String?, String>) ->Unit,
+
 ) {
 
     val emailState = remember { mutableStateOf("") }
@@ -361,43 +374,68 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     //var friendsEmails by remember { mutableStateOf(emptyList<String>()) }
 
-    var userdata by remember { mutableStateOf(emptyList<FriendsData>()) }
+    var userdata by remember { mutableStateOf(friends) }
 
-    var friendsPhotos by remember { mutableStateOf(emptyList<String>()) }
-    var userPhotoUrl by remember { mutableStateOf<String>("No Photo") }
 
-    var latestMessage by remember { mutableStateOf<String?>(null) }
-    var latestMessageTime by remember { mutableStateOf<String?>(null) }
+    var friendsPhotos by remember { mutableStateOf(photoUrls) }
+    var userPhotoUrl by remember { mutableStateOf(userProfileImage) }
 
-    LaunchedEffect(friends) {
-        friends.collect { (friendsList, messageData) ->
-            userdata = friendsList
-            latestMessage = messageData.first ?: ""
-            latestMessageTime = messageData.second
+    var latestMessage by remember { mutableStateOf(userMessagesState.first) }
+    var latestMessageTime by remember { mutableStateOf(userMessagesState.second) }
+
+//    LaunchedEffect(friends) {
+//        friends.collect { (friendsList, messageData) ->
+//            userdata = friendsList
+//            latestMessage = messageData.first ?: ""
+//            latestMessageTime = messageData.second
+//        }
+//    }
+//
+//    LaunchedEffect(photoUrls) {
+//        photoUrls.collect { (friendsphotos, userPhotourl) ->
+//            friendsPhotos = friendsphotos
+//            userPhotoUrl = userPhotourl
+//        }
+//    }
+
+    val sheetState = rememberModalBottomSheetState()
+
+
+    var refreshData by remember { mutableStateOf(false) }
+    val pullRefreshState = rememberPullToRefreshState()
+    if (pullRefreshState.isRefreshing) {
+        val friendemails = getFriendsEmails(emailState.value, dataStore)
+        LaunchedEffect(true) {
+            friendemails.collect { (friendsList, messageData) ->
+                userdata = friendsList
+                latestMessage = messageData.first ?: ""
+                latestMessageTime = messageData.second
+            }
+            onFriendsChange(userdata)
+            onUserMessageStateChange(latestMessage to latestMessageTime)
+            pullRefreshState.endRefresh()
         }
+        Log.e("Refresh", "Refesh done and updateddd OUTSIDE: $latestMessage")
     }
-
-    LaunchedEffect(photoUrls) {
-        photoUrls.collect { (friendsphotos, userPhotourl) ->
-            friendsPhotos = friendsphotos
-            userPhotoUrl = userPhotourl
-        }
-    }
-
-    val sheetState= rememberModalBottomSheetState()
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(White)
+            .nestedScroll(pullRefreshState.nestedScrollConnection)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding()
         ) {
-            HeaderOrViewStory(updatePopUp = { newVal-> showPopUp = newVal}, onLogOutPress, onFriendRequests = onFriendRequests, friends = userdata,
-                sheetState = sheetState, email = email2)
+            HeaderOrViewStory(
+                updatePopUp = { newVal -> showPopUp = newVal },
+                onLogOutPress,
+                onFriendRequests = onFriendRequests,
+                friends = userdata,
+                sheetState = sheetState,
+                email = email2
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -420,7 +458,12 @@ fun HomeScreen(
                             .padding(16.dp)
                     ) {
                         //Log.e("STORE","${emailState.value} is EMAIL IN HomeScreen which csalls popupbox")
-                        PopupBox(showPopUp = showPopUp, updatePopUp = {newVal -> showPopUp = newVal}, email = emailState.value,dataStore)
+                        PopupBox(
+                            showPopUp = showPopUp,
+                            updatePopUp = { newVal -> showPopUp = newVal },
+                            email = emailState.value,
+                            dataStore
+                        )
                     }
 
                     BottomSheet(
@@ -433,19 +476,20 @@ fun HomeScreen(
                         email = email2
                     )
 
-                    val userDataWithPhotos: List<Pair<FriendsData, String>> = userdata.zip(friendsPhotos)
+                    val userDataWithPhotos: List<Pair<FriendsData, String>> =
+                        userdata.zip(friendsPhotos)
 
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
                     ) {
-                        item{
+                        item {
                             UserEachRow(
                                 username = email2,
-                                latestMessage = latestMessage.toString() ,
+                                latestMessage = latestMessage.toString(),
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = true,
-                                email =email2,
+                                email = email2,
                                 latestMessageTime = latestMessageTime.toString(),
                                 photourl = userPhotoUrl
                             )
@@ -467,8 +511,11 @@ fun HomeScreen(
             }
         }
 
+        PullToRefreshContainer(
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
-
 }
 
 @Composable
@@ -880,7 +927,5 @@ val moodicons = listOf(
     Pair(R.drawable.surprised_icon, "Surprised"),
     Pair(R.drawable.tensed_icon, "Dead Inside"),
 )
-
-
 
 

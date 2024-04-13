@@ -326,7 +326,7 @@ fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<Pair<Li
             val mood = friendData.getString("Mood")
             val lastmessage = friendMessagesRef.documents.getOrNull(0)?.getString("message") ?: "No Messages"
             val lastmessagetime = friendMessagesRef.documents.getOrNull(0)?.getTimestamp("timestamp")?.toDate()?.let { dateFormat.format(it) } ?: "00:00"
-            Log.d("STORE", "FriendEmail is $status & $username is cirrenttt & $lastmessage is LAST mEsaage")
+            Log.d("Refresh", "FriendEmail is $status & $username is cirrenttt & $lastmessage is LAST mEsaage")
             if (username != null) {
                 friendEmailsAndUsernames.add(FriendsData(Username = username, Email = friendEmail, Mood = mood, lastMessage = lastmessage, lastMessageTime = lastmessagetime.toString() ))
             }

@@ -23,6 +23,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.acceptFriendRequest
 import com.example69.chatapp.firebase.getFriendRequests
@@ -32,11 +33,13 @@ import com.example69.chatapp.firebase.retrieveMessages
 import com.example69.chatapp.ui.theme.Screens.FriendRequestsScreen
 import com.example69.chatapp.ui.theme.Screens.ReplyEmailListItem
 import com.example69.chatapp.ui.theme.Screens.SignUpScreenEmail
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 
 import kotlinx.coroutines.launch
-
-
+import kotlinx.coroutines.withContext
 
 
 //@Composable
@@ -145,6 +148,28 @@ fun MainNavigation(activity: MainActivity) {
     val friendEmail = remember{ mutableStateOf("") }
     val friendUsername = remember{ mutableStateOf("") }
 
+//    val initialFriendsState: Flow<Pair<List<FriendsData>, Pair<String?, String>>> = flow {
+//        emit(emptyList<FriendsData>() to ("" to ""))
+//    }
+//
+//    val friendsState = remember { mutableStateOf(initialFriendsState) }
+
+    val friendsAndMessages = remember { mutableStateOf<Pair<List<FriendsData>, Pair<String?, String>>?>(null) }
+
+    val initialPhotoUrls = remember { mutableStateOf<Pair<List<String>, String>>(emptyList<String>() to "") }
+
+    var (friendsList) = remember { mutableStateOf<List<FriendsData>>(emptyList()) }
+    var (photoUrls) = remember { mutableStateOf<List<String>>(emptyList()) }
+    var (userMessagesState) = remember { mutableStateOf<Pair<String?, String>>("No Messages" to "00:00") }
+    var (userProfileImage) = remember { mutableStateOf<String>("No Photo") }
+
+//    val initialPhotoUrls: Flow<Pair<List<String>, String>> = flow {
+//        emit(emptyList<String>() to "")
+//    }
+//
+//    val photoUrlsState = remember { mutableStateOf(initialPhotoUrls) }
+
+
     // Retrieve the email value from DataStore preferences
     LaunchedEffect(Unit) {
         val email = dataStore.getEmail.first()
@@ -185,26 +210,59 @@ fun MainNavigation(activity: MainActivity) {
                 }
                 if (emailState.value.isNotEmpty()) {
                     Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
-                    val friends = getFriendsEmails(emailState.value, dataStore)
-                    val photourls = getFriendsPhotos(dataStore)
-                    if (userIsSignedIn) {
+//                    val friends = getFriendsEmails(emailState.value, dataStore)
+//                    val photourls = getFriendsPhotos(dataStore)
+                    if (friendsAndMessages.value == null || initialPhotoUrls.value == (emptyList<String>() to "")) {
+                        // Show a loading indicator or placeholder
+                        LaunchedEffect(friendsList) {
+                            withContext(Dispatchers.IO) {
+                                getFriendsEmails(
+                                    emailState.value,
+                                    dataStore
+                                ).collect { (friends, userMessages) ->
+                                    getFriendsPhotos(dataStore).collect { (photos, userProfileImage) ->
+                                        friendsAndMessages.value =
+                                            friends to (userMessages.first to userMessages.second)
+                                        initialPhotoUrls.value = photos to userProfileImage
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if(friendsAndMessages.value !=null){
+                        val (friends, messagesState) = friendsAndMessages.value!!
+                        friendsList = friends
+                        userMessagesState = messagesState
+
+                        val (urls, profileImage) = initialPhotoUrls.value
+                        photoUrls = urls
+                        userProfileImage = profileImage
+                    }
+
+                    if (userIsSignedIn && friendsAndMessages.value != null && initialPhotoUrls.value != (emptyList<String>() to "") ) {
                         HomeScreen(
                             onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
-                            friends = friends,
+                            friends = friendsList,
                             email2 = emailState.value,
                             dataStore = dataStore,
-                            onClick = { email,username ->
+                            onClick = { email, username ->
                                 friendEmail.value = email
                                 friendUsername.value = username
                             },
-                            onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean)},
-                            onFriendRequests = {navController.navigate(FRIEND_REQUESTS)},
-                            photoUrls = photourls
+                            onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean) },
+                            onFriendRequests = { navController.navigate(FRIEND_REQUESTS) },
+                            photoUrls = photoUrls,
+                            userMessagesState = userMessagesState,
+                            userProfileImage = userProfileImage,
+                            onFriendsChange = {newVal -> friendsList = newVal},
+                            onUserMessageStateChange = {newVal -> userMessagesState = newVal}
                         )
                     }
                 }
             }
         }
+
         composable(
             "CHAT_SCREEN/{canChat}",
             arguments = listOf(navArgument("canChat") { type = NavType.BoolType })
@@ -251,13 +309,6 @@ fun MainNavigation(activity: MainActivity) {
         }
     }
 }
-
-
-private fun getStartDestination(userIsSignedIn: Boolean): String {
-    return if (userIsSignedIn) HOME_SCREEN else LOGIN_SCREEN
-}
-
-
 
 
 const val HOME_SCREEN = "Home screen"
