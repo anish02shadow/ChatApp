@@ -18,12 +18,18 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.BottomCenter
 import androidx.compose.ui.Alignment.Companion.Center
@@ -44,6 +50,7 @@ import com.example69.chatapp.R
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addChat
+import com.example69.chatapp.firebase.deleteFriend
 import com.example69.chatapp.ui.theme.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
@@ -57,7 +64,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
@@ -69,7 +79,9 @@ fun ChatScreen(
     email: String,
     messages: Flow<List<Message>>,
     friendUsername: String?,
-    canChat: Boolean?
+    canChat: Boolean?,
+    dataStore: StoreUserEmail,
+    onDeleteNavigateHome: () ->Unit
 ) {
 
     val lazyListState = rememberLazyListState()
@@ -81,6 +93,9 @@ fun ChatScreen(
         val job = launch {
             messages.collect { newMessages ->
                 Messages = newMessages
+                if (newMessages.isNotEmpty()) {
+                    lazyListState.scrollToItem(newMessages.size - 1)
+                }
             }
         }
     }
@@ -96,7 +111,10 @@ fun ChatScreen(
             friendUsername?.let {
                 UserNameRow(
                     modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp),
-                    name = it
+                    name = it,
+                    dataStore = dataStore ,
+                    email = email,
+                    onDeleteNavigateHome = onDeleteNavigateHome
                 )
             }
             Box(
@@ -111,20 +129,6 @@ fun ChatScreen(
 
             ) {
                     MessagesList(messages = Messages,lazyListState,canChat = canChat)
-//                LazyColumn(
-//                    modifier = Modifier.padding(
-//                        start = 15.dp,
-//                        top = 25.dp,
-//                        end = 15.dp,
-//                        bottom = 75.dp
-//                    )
-//                ) {
-//                    items(3, key = null) {
-//                        ChatRow(direction = false,message="Hey!", time = "12:24")
-//                        ChatRow(direction = false,message="How are you doing?",time="12:25")
-//                        ChatRow(direction = true,message="I am fine, wbu?", time = "12:25")
-//                    }
-//                }
             }
         }
 
@@ -152,8 +156,12 @@ fun ChatScreen(
 
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MessagesList(messages: List<Message>,lazyListState: LazyListState = rememberLazyListState(), canChat: Boolean?) {
+
+    val groupedMessages = messages.groupBy { Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate() }
+
     LazyColumn(
         state = lazyListState,
         modifier = Modifier.padding(
@@ -163,14 +171,70 @@ fun MessagesList(messages: List<Message>,lazyListState: LazyListState = remember
             bottom = 75.dp
         )
     ) {
-        items(messages, key = { it.timestamp }) { message ->
-        ChatRow(
-            direction = !canChat!!,
-            message = message.message,
-            time = formatTimestamp(message.timestamp)
+//        items(messages, key = { it.timestamp }) { message ->
+//        ChatRow(
+//            direction = !canChat!!,
+//            message = message.message,
+//            time = formatTimestamp(message.timestamp)
+//        )
+//    }
+        groupedMessages.forEach { (date, dateMessages) ->
+            item {
+                DateSeparator(date)
+            }
+            items(dateMessages, key = { it.timestamp }) { message ->
+                ChatRow(
+                    direction = !canChat!!,
+                    message = message.message,
+                    time = formatTimestamp(message.timestamp)
+                )
+            }
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun DateSeparator(date: LocalDate) {
+    val text = when (date) {
+        LocalDate.now() -> "Today"
+        LocalDate.now().minusDays(1) -> "Yesterday"
+        else -> "${date.dayOfMonth}${getDayOfMonthSuffix(date.dayOfMonth)} ${date.month.getDisplayName(java.time.format.TextStyle.FULL,Locale.getDefault())} ${date.year}"
+            //date.format(DateTimeFormatter.ofPattern("dd:MM:yyyy"))
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.Gray
         )
     }
+}
+
+fun getDayOfMonthSuffix(n: Int): String {
+    if (n in 11..13) {
+        return "th"
     }
+    return when (n % 10) {
+        1 -> "st"
+        2 -> "nd"
+        3 -> "rd"
+        else -> "th"
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun formatTimestamp2(timestamp: Long): String {
+    return Instant.ofEpochMilli(timestamp)
+        .atZone(ZoneId.systemDefault())
+        .toLocalTime()
+        .format(DateTimeFormatter.ofPattern("HH:mm"))
 }
 private fun formatTimestamp(timestamp: Long): String {
     val date = Date(timestamp)
@@ -251,7 +315,7 @@ fun CustomTextField(
         ),
         leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
         trailingIcon = {
-            CommonIconButtonDrawable(R.drawable.mic, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick)
+            CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick)
                        },
         modifier = modifier.fillMaxWidth(),
         shape = CircleShape
@@ -312,20 +376,31 @@ fun CommonIconButtonDrawable(
 @Composable
 fun UserNameRow(
     modifier: Modifier = Modifier,
-    name: String
+    name: String,
+    email: String,
+    dataStore: StoreUserEmail,
+    onDeleteNavigateHome: () ->Unit
 ) {
+    val emailState = remember { mutableStateOf("") }
 
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(emailState.value) {
+        emailState.value = dataStore.getEmail.first()
+    }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row {
 
-            Image(painter = painterResource(id = com.example69.chatapp.R.drawable.ic_launcher_background),
+            Image(
+                painter = painterResource(id = com.example69.chatapp.R.drawable.ic_launcher_background),
                 contentDescription = "photo of user",
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(CircleShape))
+                    .clip(CircleShape)
+            )
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
@@ -333,23 +408,35 @@ fun UserNameRow(
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
-                    )
-                )
-                Text(
-                    text = "Online", style = TextStyle(
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
+                    ),
+                    modifier = Modifier.padding(top = 15.dp)
                 )
             }
         }
-        Icon(
-            imageVector = Icons.Default.MoreVert,
-            contentDescription = "More",
-            tint = Color.White,
-            modifier = Modifier
-                .size(24.dp))
+        var Expanded by rememberSaveable {
+            mutableStateOf(false)
+        }
+        if(!emailState.value.equals(email)){
+            IconButton(onClick = { Expanded = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(24.dp)
+                )
+                DropdownMenu(expanded = Expanded , onDismissRequest = { Expanded = false }) {
+                    DropdownMenuItem(text = { Text("Delete Friend") }, onClick = {
+                        Expanded = false
+                        scope.launch {
+                            deleteFriend(email,dataStore)
+                            onDeleteNavigateHome()
+                        }
+                    })
+                }
+            }
+        }
     }
-
 }
+
 

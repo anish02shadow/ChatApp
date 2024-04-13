@@ -68,17 +68,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.LightGray
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
+import coil.request.ImageRequest
 import com.example69.chatapp.R
 import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.StoreUserEmail
@@ -202,7 +209,7 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFrie
             Icon(painter = painterResource(id = R.drawable.baseline_more_vert_24 ), contentDescription = "More Vert", tint = Black)
             DropdownMenu(expanded = Expanded , onDismissRequest = { Expanded = false }) {
                 DropdownMenuItem(text = { Text("Add Friends") }, onClick = { updatePopUp(true) }, colors = MenuDefaults.itemColors(
-                    textColor = White))
+                    ))
                 DropdownMenuItem(text = { Text("Log Out") }, onClick = { FirebaseAuth.getInstance().signOut()
                     onLogOutPress()
                 }
@@ -312,9 +319,8 @@ fun CustomStyleTextField2(
             onNext = {
                 scope.launch {
                     //Log.e("STORE","$email is EMAIL IN CustomTextFielf which csalls addFriend, $dataStore")
-                    addFriend(email, textState,dataStore = dataStore)
-                    val text = "Friend Request Sent!"
-                    val duration = Toast.LENGTH_SHORT
+                    val text = addFriend(email, textState,dataStore = dataStore)
+                    val duration = Toast.LENGTH_LONG
 
                     val toast = Toast.makeText(context, text, duration)
                     toast.show()
@@ -335,7 +341,8 @@ fun HomeScreen(
     dataStore: StoreUserEmail,
     onClick: (String,String) -> Unit,
     onNavigateToChat: (Boolean?) -> Unit,
-    onFriendRequests: () ->Unit
+    onFriendRequests: () ->Unit,
+    photoUrls: Flow<Pair<List<String>,String>>
 ) {
 
     val emailState = remember { mutableStateOf("") }
@@ -356,6 +363,9 @@ fun HomeScreen(
 
     var userdata by remember { mutableStateOf(emptyList<FriendsData>()) }
 
+    var friendsPhotos by remember { mutableStateOf(emptyList<String>()) }
+    var userPhotoUrl by remember { mutableStateOf<String>("No Photo") }
+
     var latestMessage by remember { mutableStateOf<String?>(null) }
     var latestMessageTime by remember { mutableStateOf<String?>(null) }
 
@@ -364,6 +374,13 @@ fun HomeScreen(
             userdata = friendsList
             latestMessage = messageData.first ?: ""
             latestMessageTime = messageData.second
+        }
+    }
+
+    LaunchedEffect(photoUrls) {
+        photoUrls.collect { (friendsphotos, userPhotourl) ->
+            friendsPhotos = friendsphotos
+            userPhotoUrl = userPhotourl
         }
     }
 
@@ -416,6 +433,8 @@ fun HomeScreen(
                         email = email2
                     )
 
+                    val userDataWithPhotos: List<Pair<FriendsData, String>> = userdata.zip(friendsPhotos)
+
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
                     ) {
@@ -427,10 +446,11 @@ fun HomeScreen(
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = true,
                                 email =email2,
-                                latestMessageTime = latestMessageTime.toString()
+                                latestMessageTime = latestMessageTime.toString(),
+                                photourl = userPhotoUrl
                             )
                         }
-                        items(userdata) { friend ->
+                        items(userDataWithPhotos) { (friend, photoUrl) ->
                             UserEachRow(
                                 username = friend.Username,
                                 latestMessage = friend.lastMessage.toString(),
@@ -438,7 +458,8 @@ fun HomeScreen(
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = false,
                                 email = friend.Email,
-                                latestMessageTime = friend.lastMessageTime.toString()
+                                latestMessageTime = friend.lastMessageTime.toString(),
+                                photourl = photoUrl
                             )
                         }
                     }
@@ -538,9 +559,14 @@ fun UserEachRow(
     onClick: (String,String) -> Unit,
     onNavigateToChat: (Boolean) -> Unit,
     canChat: Boolean,
-    latestMessageTime: String
+    latestMessageTime: String,
+    photourl: String
 ) {
-
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(LocalContext.current)
+            .data(photourl)
+            .build()
+    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -558,12 +584,19 @@ fun UserEachRow(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row {
-                   Image(painter = painterResource(id = com.example69.chatapp.R.drawable.cool_icon),
-                       contentDescription = "photo of user",
-                   modifier = Modifier
-                       .size(60.dp)
-                       .clip(CircleShape)
-                       .shadow(2.dp, shape = CircleShape))
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp) // Set the box size to 60.dp
+                            .clip(CircleShape) // Clip the content of the box to a circle
+                            .shadow(2.dp, shape = CircleShape) // Add circular shadow
+                    ) {
+                        Image(
+                            painter = painter,
+                            contentDescription = "Photo of user",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
@@ -693,8 +726,12 @@ fun AddStoryLayout(
                 }
             }
             else{
-                Image(painter = painterResource(id = drawableId), contentDescription = "Mood" , modifier = Modifier.clip(
-                    CircleShape).fillMaxSize().clickable { scope.launch { sheetState.show() } })
+                Image(painter = painterResource(id = drawableId), contentDescription = "Mood" , modifier = Modifier
+                    .clip(
+                        CircleShape
+                    )
+                    .fillMaxSize()
+                    .clickable { scope.launch { sheetState.show() } })
             }
         }
         Spacer(modifier = Modifier.height(8.dp))

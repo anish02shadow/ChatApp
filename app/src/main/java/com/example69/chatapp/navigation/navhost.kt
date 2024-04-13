@@ -27,6 +27,7 @@ import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.acceptFriendRequest
 import com.example69.chatapp.firebase.getFriendRequests
 import com.example69.chatapp.firebase.getFriendsEmails
+import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.firebase.retrieveMessages
 import com.example69.chatapp.ui.theme.Screens.FriendRequestsScreen
 import com.example69.chatapp.ui.theme.Screens.ReplyEmailListItem
@@ -185,6 +186,7 @@ fun MainNavigation(activity: MainActivity) {
                 if (emailState.value.isNotEmpty()) {
                     Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
                     val friends = getFriendsEmails(emailState.value, dataStore)
+                    val photourls = getFriendsPhotos(dataStore)
                     if (userIsSignedIn) {
                         HomeScreen(
                             onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
@@ -196,7 +198,8 @@ fun MainNavigation(activity: MainActivity) {
                                 friendUsername.value = username
                             },
                             onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean)},
-                            onFriendRequests = {navController.navigate(FRIEND_REQUESTS)}
+                            onFriendRequests = {navController.navigate(FRIEND_REQUESTS)},
+                            photoUrls = photourls
                         )
                     }
                 }
@@ -214,7 +217,9 @@ fun MainNavigation(activity: MainActivity) {
                     friendEmail.value,
                     messages,
                     friendUsername.value,
-                    backStackEntry.arguments?.getBoolean("canChat")
+                    backStackEntry.arguments?.getBoolean("canChat"),
+                    dataStore,
+                    { navController.navigate(HOME_SCREEN) }
                 )
             }
         }

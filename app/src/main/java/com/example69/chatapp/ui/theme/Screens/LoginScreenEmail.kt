@@ -141,7 +141,7 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                             CustomStyleTextField(
                                 textState = phoneState,
                                 "Enter Email",
-                                com.example69.chatapp.R.drawable.baseline_phone_24,
+                                R.drawable.baseline_email_24,
                                 KeyboardType.Email,
                                 VisualTransformation.None,
                                 onTextChange = {newText->

@@ -1,6 +1,7 @@
 package com.example69.chatapp.ui.theme.Screens
 
 import android.app.Activity
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -60,6 +61,9 @@ fun SignUpScreenEmail(activity: Activity,
                       dataStore: StoreUserEmail,
                       onNavigateToHome:() ->Unit= {}) {
     val scope = rememberCoroutineScope()
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedPhotobitmap by remember { mutableStateOf<Bitmap?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -97,7 +101,19 @@ fun SignUpScreenEmail(activity: Activity,
                 containerColor = Color(0xFFF8F8F8),
             )
         ){
-            ProfileImage()
+            Row(horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically) {
+                PhotoPickerCard(
+                    modifier = Modifier.padding(16.dp),
+                    photoUri = selectedPhotoUri,
+                    onPhotoSelected = { uri ->
+                        selectedPhotoUri = uri
+                    },
+                    onPhotoSelectedBitmap = {bitmap ->
+                        selectedPhotobitmap = bitmap
+                    }
+                )
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -115,7 +131,7 @@ fun SignUpScreenEmail(activity: Activity,
                     height = 50,
                     textState = nameState,
                     "Enter a Username",
-                    R.drawable.baseline_phone_24,
+                    R.drawable.baseline_assignment_ind_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
                     onTextChange = {newText->
@@ -133,7 +149,7 @@ fun SignUpScreenEmail(activity: Activity,
                     height= 150,
                     textState = bioState,
                     "Enter your Bio",
-                    R.drawable.baseline_phone_24,
+                    R.drawable.baseline_border_color_24,
                     KeyboardType.Text,
                     VisualTransformation.None,
                     onTextChange = {newText->
@@ -147,7 +163,11 @@ fun SignUpScreenEmail(activity: Activity,
                     onClick = {
                         hasUserInteracted = true
                         scope.launch {
-                            updateNameAndBio(nameState, bioState, dataStore)
+                            selectedPhotobitmap?.let {
+                                updateNameAndBio(nameState, bioState, dataStore,
+                                    it
+                                )
+                            }
                             Log.e("STORE","CALLED NAVIGATEHOME")
                             onNavigateToHome()}
                         },
