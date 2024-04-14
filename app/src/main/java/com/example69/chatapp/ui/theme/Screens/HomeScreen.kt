@@ -106,8 +106,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example69.chatapp.realmdb.RealmViewModel
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
+import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
 import kotlinx.coroutines.flow.collectIndexed
 
 
@@ -371,6 +374,12 @@ fun HomeScreen(
 //        }
 //    }
 
+    val realmViewModel: RealmViewModel = viewModel(
+        key = "RealmViewModel",
+        factory = RealmViewModelFactory(viewModel, dataStore)
+    )
+
+
     val emailState = remember { mutableStateOf("") }
     //val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
 
@@ -433,10 +442,12 @@ fun HomeScreen(
             getmood.collect{ moodnew ->
                 mood = moodnew
             }
+            realmViewModel.addMessagesToRealm()
             viewModel.getmood(email2)
             onFriendsChange(userdata)
             onUserMessageStateChange(latestMessage to latestMessageTime)
             viewModel.getFriendsAndMessages()
+
             pullRefreshState.endRefresh()
         }
         Log.e("Refresh", "Refesh done and updateddd OUTSIDE: $latestMessage")

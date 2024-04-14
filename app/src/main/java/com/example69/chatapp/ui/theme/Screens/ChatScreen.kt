@@ -58,6 +58,8 @@ import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addChat
 import com.example69.chatapp.firebase.deleteFriend
+import com.example69.chatapp.realmdb.FriendMessagesRealm
+import com.example69.chatapp.realmdb.MessageRealm
 import com.example69.chatapp.ui.theme.*
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -85,8 +87,8 @@ import java.util.Locale
 @Composable
 fun ChatScreen(
     email: String,
-    //messages: List<Message>,
-    messages: Flow<List<Message>>,
+    messages: List<MessageRealm>,
+    //messages: Flow<List<Message>>,
     friendUsername: String?,
     canChat: Boolean?,
     dataStore: StoreUserEmail,
@@ -98,25 +100,21 @@ fun ChatScreen(
     val lazyListState = rememberLazyListState()
     var message by remember { mutableStateOf("") }
 
-    //var Messages by remember { mutableStateOf(messages) }
+    var Messages by remember { mutableStateOf(messages) }
 
-    var Messages by remember { mutableStateOf(emptyList<Message>()) }
-
-    LaunchedEffect(messages) {
-        val job = launch {
-            messages.collect { newMessages ->
-                Messages = newMessages
-                if (newMessages.isNotEmpty()) {
-                    lazyListState.scrollToItem(newMessages.size - 1)
-                }
-            }
-        }
-    }
+//    var Messages by remember { mutableStateOf(emptyList<Message>()) }
+//
 //    LaunchedEffect(messages) {
-//        if (Messages.isNotEmpty()) {
-//            lazyListState.scrollToItem(Messages.size - 1)
+//        val job = launch {
+//            messages.collect { newMessages ->
+//                Messages = newMessages
+//                if (newMessages.isNotEmpty()) {
+//                    lazyListState.scrollToItem(newMessages.size - 1)
+//                }
+//            }
 //        }
 //    }
+
 
     Box(
         modifier = Modifier
@@ -178,7 +176,11 @@ fun ChatScreen(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun MessagesList(messages: List<Message>,lazyListState: LazyListState = rememberLazyListState(), canChat: Boolean?) {
+fun MessagesList(
+    //messages: List<Message>,
+    messages: List<MessageRealm>,
+    lazyListState: LazyListState = rememberLazyListState(),
+    canChat: Boolean?) {
 
     val groupedMessages = messages.groupBy { Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate() }
 

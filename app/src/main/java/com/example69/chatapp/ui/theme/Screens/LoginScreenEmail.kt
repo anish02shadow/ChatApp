@@ -40,6 +40,7 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example69.chatapp.R
+import com.example69.chatapp.animations.MinaBoxAdvancedScreen
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.firebase.storePhoneNumber
 import com.example69.chatapp.navigation.HOME_SCREEN
@@ -73,7 +74,7 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                                 start.linkTo(parent.start)
                                 end.linkTo(parent.end)
                             }) {
-                        HeaderView()
+                        MinaBoxAdvancedScreen()
                     }
                     Card(
                         shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp),
@@ -174,34 +175,60 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                                 val context = LocalContext.current
                                 Button(
                                     onClick = {
-                                        scope.launch(Dispatchers.Main) {
-                                            viewModel.signInWithEmail(
-                                                phoneState,
-                                                otpState,
-                                                activity = activity
-                                            ).collect {
-                                                Log.e("STORE", "SIGN IN WITH EMAILLLL CALLED")
-                                                when (it) {
-                                                    is ResultState.Success->{
-                                                        Log.e("STORE", "SUCESSS  EMAIL SIGNinnn aahahah")
-                                                        //storePhoneNumber(phoneState)
-                                                        onEmailChange(phoneState)
-                                                        isDialog = false
-                                                        Log.e("STORE", "cALLING Naviagte Home")
-                                                        onNavigateToHome()
-                                                    }
-                                                    is ResultState.Failure->{
-                                                        Log.e("STORE", "FAILIUREEE EMAILL")
-                                                        val text = "Invalid Credentials!!"
-                                                        val duration = Toast.LENGTH_SHORT
+                                        if (phoneState.isBlank()) {
+                                            Toast.makeText(
+                                                context,
+                                                "Please enter the email address",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else if (otpState.isBlank()) {
+                                            Toast.makeText(
+                                                context,
+                                                "Please enter the password",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            scope.launch(Dispatchers.Main) {
+                                                viewModel.signInWithEmail(
+                                                    phoneState,
+                                                    otpState,
+                                                    activity = activity
+                                                ).collect {
+                                                    Log.e("STORE", "SIGN IN WITH EMAILLLL CALLED")
+                                                    when (it) {
+                                                        is ResultState.Success -> {
+                                                            Log.e(
+                                                                "STORE",
+                                                                "SUCESSS  EMAIL SIGNinnn aahahah"
+                                                            )
+                                                            //storePhoneNumber(phoneState)
+                                                            onEmailChange(phoneState)
+                                                            isDialog = false
+                                                            Log.e("STORE", "cALLING Naviagte Home")
+                                                            onNavigateToHome()
+                                                        }
 
-                                                        val toast = Toast.makeText(context, text, duration) // in Activity
-                                                        toast.show()
-                                                        isDialog = false
-                                                    }
-                                                    ResultState.Loading->{
-                                                        Log.e("STORE", "SIGNINEMAIL CALLED but why are U Loading")
-                                                        isDialog = true
+                                                        is ResultState.Failure -> {
+                                                            Log.e("STORE", "FAILIUREEE EMAILL")
+                                                            val text = "Invalid Credentials!!"
+                                                            val duration = Toast.LENGTH_SHORT
+
+                                                            val toast = Toast.makeText(
+                                                                context,
+                                                                text,
+                                                                duration
+                                                            ) // in Activity
+                                                            toast.show()
+                                                            isDialog = false
+                                                        }
+
+                                                        ResultState.Loading -> {
+                                                            Log.e(
+                                                                "STORE",
+                                                                "SIGNINEMAIL CALLED but why are U Loading"
+                                                            )
+                                                            isDialog = true
+                                                        }
                                                     }
                                                 }
                                             }

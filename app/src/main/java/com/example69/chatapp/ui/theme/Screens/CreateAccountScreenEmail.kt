@@ -2,6 +2,7 @@ package com.example69.chatapp.ui.theme.Screens
 
 import android.app.Activity
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -35,6 +37,7 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example69.chatapp.R
+import com.example69.chatapp.animations.MinaBoxAdvancedScreen
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.firebase.storePhoneNumber
 import com.example69.chatapp.navigation.LOGIN_SCREEN
@@ -65,7 +68,7 @@ fun CreateAccountScreenEmail(
                                 start.linkTo(parent.start)
                                 end.linkTo(parent.end)
                             }) {
-                        HeaderView()
+                        MinaBoxAdvancedScreen()
                     }
                     Card(
                         shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp),
@@ -161,29 +164,52 @@ fun CreateAccountScreenEmail(
                             var isButtonVisible by remember { mutableStateOf(true) }
 
                             if (isButtonVisible) {
+                                val context = LocalContext.current
                                 Button(
                                     onClick = {
-                                        scope.launch(Dispatchers.Main) {
-                                            viewModel.createUserWithEmail(
-                                                phoneState,
-                                                otpState,
-                                                activity = activity
-                                            ).collect {
-                                                Log.e("STORE", "CREATEUSERWITHEMAIL CALLED")
-                                                when (it) {
-                                                    is ResultState.Success->{
-                                                        Log.e("STORE", "SUCESSS USER EMAIL WOHOOOHOH")
-                                                        storePhoneNumber(phoneState)
-                                                        onEmailChange(phoneState)
-                                                        isDialog = false
-                                                        onNavigateToUsername()
-                                                    }
-                                                    is ResultState.Failure->{
-                                                        isDialog = false
-                                                    }
-                                                    ResultState.Loading->{
-                                                        Log.e("STORE", "CREATEUSERWITHEMAIL CALLED but why are U Loading")
-                                                        isDialog = true
+                                        if (phoneState.isBlank()) {
+                                            Toast.makeText(
+                                                context,
+                                                "Please enter the email address",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else if (otpState.isBlank()) {
+                                            Toast.makeText(
+                                                context,
+                                                "Please enter the password",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            scope.launch(Dispatchers.Main) {
+                                                viewModel.createUserWithEmail(
+                                                    phoneState,
+                                                    otpState,
+                                                    activity = activity
+                                                ).collect {
+                                                    Log.e("STORE", "CREATEUSERWITHEMAIL CALLED")
+                                                    when (it) {
+                                                        is ResultState.Success -> {
+                                                            Log.e(
+                                                                "STORE",
+                                                                "SUCESSS USER EMAIL WOHOOOHOH"
+                                                            )
+                                                            storePhoneNumber(phoneState)
+                                                            onEmailChange(phoneState)
+                                                            isDialog = false
+                                                            onNavigateToUsername()
+                                                        }
+
+                                                        is ResultState.Failure -> {
+                                                            isDialog = false
+                                                        }
+
+                                                        ResultState.Loading -> {
+                                                            Log.e(
+                                                                "STORE",
+                                                                "CREATEUSERWITHEMAIL CALLED but why are U Loading"
+                                                            )
+                                                            isDialog = true
+                                                        }
                                                     }
                                                 }
                                             }

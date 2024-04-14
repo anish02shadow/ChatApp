@@ -21,10 +21,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example69.chatapp.BaseApplication
 import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
@@ -34,14 +36,22 @@ import com.example69.chatapp.firebase.getFriendsEmails
 import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.firebase.getMood
 import com.example69.chatapp.firebase.retrieveMessages
+import com.example69.chatapp.realmdb.FriendMessagesRealm
+import com.example69.chatapp.realmdb.RealmViewModel
 import com.example69.chatapp.ui.theme.Screens.FriendRequestsScreen
 import com.example69.chatapp.ui.theme.Screens.SignUpScreenEmail
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModelFactory
+import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
+import io.realm.kotlin.Realm
+import io.realm.kotlin.ext.query
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,6 +61,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun MainNavigation(activity: MainActivity) {
     val colorViewModel = viewModel<ColorViewModel>()
+
 
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -95,6 +106,13 @@ fun MainNavigation(activity: MainActivity) {
         factory = MainViewModelFactory(dataStore, navController)
     )
 
+    val realmViewModel: RealmViewModel = viewModel(
+        key = "RealmViewModel",
+        factory = RealmViewModelFactory(viewModel, dataStore)
+    )
+
+
+
     // Retrieve the email value from DataStore preferences
     LaunchedEffect(Unit) {
         val email = dataStore.getEmail.first()
@@ -109,6 +127,10 @@ fun MainNavigation(activity: MainActivity) {
     fun onNavigateToChat(canChat: Boolean) {
         navController.navigate("CHAT_SCREEN/$canChat")
     }
+
+    val FriendMessagesRealm by realmViewModel.friendmessages.collectAsState()
+
+
 
 
     NavHost(navController = navController, startDestination = HOME_SCREEN) {
@@ -206,12 +228,13 @@ fun MainNavigation(activity: MainActivity) {
             arguments = listOf(navArgument("canChat") { type = NavType.BoolType })
         ) { backStackEntry ->
             userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-            val messages = retrieveMessages(friendEmail.value)
+            //val messages = retrieveMessages(friendEmail.value)
             //ChatScreen(navController)
             if (userIsSignedIn) {
                 ChatScreen(
                     friendEmail.value,
-                    messages,
+                    //messages,
+                    realmViewModel.getFriendDataTRealm(friendEmail.value),
                     friendUsername.value,
                     backStackEntry.arguments?.getBoolean("canChat"),
                     dataStore,

@@ -35,7 +35,7 @@ class MainViewModel(
     private val dataStore: StoreUserEmail,
     private val navController: NavController
 ) : ViewModel() {
-    private val _emailState = mutableStateOf("")
+    public val _emailState = mutableStateOf("")
     val emailState: State<String> = _emailState
 
     private val _userIsSignedIn = mutableStateOf(false)
