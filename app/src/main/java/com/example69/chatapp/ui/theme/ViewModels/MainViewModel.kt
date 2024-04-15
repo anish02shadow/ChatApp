@@ -46,10 +46,10 @@ class MainViewModel(
     private val _userIsSignedIn = mutableStateOf(false)
     val userIsSignedIn: State<Boolean> = _userIsSignedIn
 
-    private val _friendsAndMessages = mutableStateOf<Pair<List<FriendsData>, Pair<String?, String>>?>(
-        emptyList<FriendsData>() to ("" to "")
+    private val _friendsAndMessages = mutableStateOf<Pair<List<FriendsData>, Pair<String?, Long>>?>(
+        emptyList<FriendsData>() to ("" to 0)
     )
-    val friendsAndMessages: State<Pair<List<FriendsData>, Pair<String?, String>>?> = _friendsAndMessages
+    val friendsAndMessages: State<Pair<List<FriendsData>, Pair<String?, Long>>?> = _friendsAndMessages
 
     private val _initialPhotoUrls = mutableStateOf<Pair<List<FriendPhoto>, FriendPhoto>>(emptyList<FriendPhoto>() to FriendPhoto("No Photo",emailState.value))
     val initialPhotoUrls = _initialPhotoUrls
@@ -129,13 +129,13 @@ class MainViewModel(
         Log.e("Refresh","onFriendClick updating email and username and cnacHAT to ${_friendEmail.value}  ${_friendUsername.value}  ${_canChat.value}")
     }
 
-    fun onFriendsChange(newFriendsList: List<FriendsData>) {
-        _friendsAndMessages.value = newFriendsList to (_friendsAndMessages.value?.second ?: ("" to ""))
-    }
-
-    fun onUserMessageStateChange(newUserMessagesState: Pair<String?, String>) {
-        _friendsAndMessages.value = (_friendsAndMessages.value?.first ?: emptyList<FriendsData>() ) to newUserMessagesState
-    }
+//    fun onFriendsChange(newFriendsList: List<FriendsData>) {
+//        _friendsAndMessages.value = newFriendsList to (_friendsAndMessages.value?.second ?: ("" to 0))
+//    }
+//
+//    fun onUserMessageStateChange(newUserMessagesState: Pair<String?, String>) {
+//        _friendsAndMessages.value = (_friendsAndMessages.value?.first ?: emptyList<FriendsData>() ) to newUserMessagesState
+//    }
 
     fun onEmailChange(newEmail: String) {
         viewModelScope.launch {

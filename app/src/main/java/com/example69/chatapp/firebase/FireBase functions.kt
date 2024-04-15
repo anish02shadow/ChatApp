@@ -6,12 +6,17 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.example69.chatapp.BaseApplication
 import com.example69.chatapp.data.FriendPhoto
 
 import com.example69.chatapp.data.FriendRequests
 import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
+import com.example69.chatapp.realmdb.FriendMessagesRealm
+import com.example69.chatapp.realmdb.MessageRealm
+import com.example69.chatapp.realmdb.RealmViewModel
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -19,6 +24,12 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
+import io.realm.kotlin.UpdatePolicy
+import io.realm.kotlin.ext.copyFromRealm
+import io.realm.kotlin.ext.query
+import io.realm.kotlin.ext.realmListOf
+import io.realm.kotlin.types.RealmList
+import io.realm.kotlin.types.annotations.PrimaryKey
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -27,6 +38,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 suspend fun addFriend(email: String, textState: String, dataStore: StoreUserEmail): String {
@@ -149,24 +161,13 @@ suspend fun updateNameAndBio(
     dataStore: StoreUserEmail,
     imageBitmap: Bitmap
 ) {
+    Log.e("CREATEACCOUNTFIREBASE", "called updateNameAndBio ")
     val emaill = dataStore.getEmail.first()
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid ?: return
 
     val db = FirebaseFirestore.getInstance()
     val userRef = db.collection("users").document(emaill)
 
-    // Create a map with the updated data
-    val data = hashMapOf(
-        "Email" to emaill,
-        "Username" to name,
-        "Bio" to bio,
-        "Mood" to "null"
-    )
-
     try {
-        // Update the data in Firestore
-        userRef.set(data).await()
 
         // Upload the image to Firebase Storage
         val storageRef = FirebaseStorage.getInstance().reference.child("users/$emaill/profile.jpg")
@@ -188,16 +189,55 @@ suspend fun updateNameAndBio(
         uploadTask.await()
 
         // Get the download URL of the uploaded image
-        val downloadUrl = storageRef.downloadUrl.await().toString()
+        var downloadUrl = storageRef.downloadUrl.await().toString()
+        if(downloadUrl.isEmpty()){
+            downloadUrl = ""
+        }
 
-        // Update the user's profile image URL in Firestore
-        userRef.update("ProfileImageUrl", downloadUrl).await()
+        // Create a map with the updated data
+        val data = hashMapOf(
+            "Email" to emaill,
+            "Username" to name,
+            "Bio" to bio,
+            "Mood" to "No Mood",
+            "ProfileImageUrl" to downloadUrl
+        )
+        Log.e("CREATEACCOUNTFIREBASE", "UPDATING $downloadUrl AGHHHH ")
+        // Update the data in Firestore
+        userRef.set(data).await()
     } catch (e: Exception) {
         // Handle any errors here
         Log.e("STORE", "Error updating name, bio, and profile image: $e")
     }
 }
 
+suspend fun updateNameAndBioWithoutBitmap(
+    name: String,
+    bio: String,
+    dataStore: StoreUserEmail,
+) {
+    Log.e("CREATEACCOUNTFIREBASE", "called updateNameAndBio ")
+    val emaill = dataStore.getEmail.first()
+
+    val db = FirebaseFirestore.getInstance()
+    val userRef = db.collection("users").document(emaill)
+
+    try {
+        // Create a map with the updated data
+        val data = hashMapOf(
+            "Email" to emaill,
+            "Username" to name,
+            "Bio" to bio,
+            "Mood" to "No Mood",
+            "ProfileImageUrl" to "No Photo"
+        )
+        // Update the data in Firestore
+        userRef.set(data).await()
+    } catch (e: Exception) {
+        // Handle any errors here
+        Log.e("STORE", "Error updating name, bio, and profile image: $e")
+    }
+}
 suspend fun getUserProfileImage(dataStore: StoreUserEmail): String? {
     val emaill = dataStore.getEmail.first()
     val db = FirebaseFirestore.getInstance()
@@ -268,11 +308,62 @@ fun retrieveMessages(email: String): Flow<List<Message>> = flow {
     var friendmessagelist = mutableListOf<Message>()
     for(document in userRef.documents) {
         val message = document.getString("message") ?: ""
-        val timestamp = document.getTimestamp("timestamp")?.toDate()?.time ?: 0L
-        //Log.e("Realm","RETRIEVE: $message is what I GET FOR $email")
-        friendmessagelist.add(Message(message, timestamp, false))
+//        val timestamp = document.getTimestamp("timestamp")?.toDate()?.time ?: 0L
+//        val timeee = document.getTimestamp("timestamp")
+        val timestampFromFirestore = document.getTimestamp("timestamp")
+        val timestampInMillis = timestampFromFirestore?.seconds?.times(1000)?.plus(timestampFromFirestore.nanoseconds / 1000000) ?: 0L
+        Log.e("Realm","RETRIEVE: $timestampFromFirestore AND $timestampInMillis is what I GET FOR $email")
+        friendmessagelist.add(Message(message, timestampInMillis, false))
     }
     emit(friendmessagelist)
+}
+
+fun retrieveMessagesNew(emailUser: String, timestampFirebase: Long, userEmail: String): Flow<List<Message>> = flow {
+    Log.e("LOL", "$emailUser is the email in retrieve messages NEW")
+    Log.e("LOL","$timestampFirebase is query timestamp")
+
+    val userRef = FirebaseFirestore.getInstance()
+        .collection("users")
+        .document(emailUser)
+        .collection("Messages")
+        .orderBy("timestamp", Query.Direction.ASCENDING)
+        .whereGreaterThanOrEqualTo("timestamp", Date(timestampFirebase))
+        .get()
+        .await()
+
+    var timestampInMillis: Long = 0
+    var messagee = ""
+
+    var friendMessageList = mutableListOf<Message>()
+    var messagesRealmList = realmListOf<MessageRealm>()
+
+    for (document in userRef.documents) {
+        messagee = document.getString("message") ?: ""
+        val messageTimestamp = document.getTimestamp("timestamp")
+        timestampInMillis = messageTimestamp?.seconds?.times(1000)?.plus(messageTimestamp.nanoseconds / 1000000) ?: 0L
+        Log.e("LOL","RETRIEVE: for message $messagee $timestampInMillis AND $messageTimestamp  is what I GET FOR $emailUser")
+        Log.e("LOL","RETRIEVE: ${convertTimestampToString(messageTimestamp)} AND ${convertLongToString(timestampInMillis)}  is what I GET FOR $emailUser")
+        friendMessageList.add(Message(messagee, timestampInMillis, false))
+        messagesRealmList.add(MessageRealm().apply {
+            message = messagee
+            timestamp = timestampInMillis
+        })
+    }
+    emit(friendMessageList)
+}
+
+fun convertTimestampToString(timestamp: Timestamp?): String {
+    if (timestamp == null) return ""
+
+    val date = timestamp.toDate()
+    val dateFormat = SimpleDateFormat("yyyy:MM:dd:HH:mm:ss", Locale.getDefault())
+    return dateFormat.format(date)
+}
+
+fun convertLongToString(timestamp: Long): String {
+    val date = Date(timestamp)
+    val dateFormat = SimpleDateFormat("yyyy:MM:dd:HH:mm:ss", Locale.getDefault())
+    return dateFormat.format(date)
 }
 
 //fun retrieveMessages(email: String): Flow<List<Message>> = callbackFlow {
@@ -328,18 +419,19 @@ fun getFriendsPhotos(dataStore: StoreUserEmail):Flow<Pair<List<FriendPhoto>,Frie
     emit(friendPhotoUrlList to FriendPhoto(photourl = userPhotourl,email = email))
 }
 
-fun getUserMessageInfo(dataStore: StoreUserEmail): Flow<Pair<String?,String>> = flow{
+fun getUserMessageInfo(dataStore: StoreUserEmail): Flow<Pair<String?,Long>> = flow{
     val email = dataStore.getEmail.first()
     val db = FirebaseFirestore.getInstance()
     val userResult = db.collection("users").document(email).collection("Messages").orderBy("timestamp", Query.Direction.DESCENDING).get().await()
     val userLatestMessage = userResult.documents.getOrNull(0)?.getString("message") ?: "No Messages"
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-    val userLatestMessageTime = userResult.documents.getOrNull(0)?.getTimestamp("timestamp")?.toDate()?.let { dateFormat.format(it) } ?: "00:00"
-    emit(userLatestMessage to userLatestMessageTime)
+    val lastmessagetime = userResult.documents.getOrNull(0)?.getTimestamp("timestamp")
+    val timestampInMillis = lastmessagetime?.seconds?.times(1000)?.plus(lastmessagetime.nanoseconds / 1000000) ?: 0L
+    emit(userLatestMessage to timestampInMillis)
 }
 
 
-fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<Pair<List<FriendsData>,Pair<String?,String>>> = flow {
+fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<Pair<List<FriendsData>,Pair<String?,Long>>> = flow {
     val email = dataStore.getEmail.first()
     Log.d("STORE", "Fetched $email in getFriendsEmailsAndUsernames")
     val db = FirebaseFirestore.getInstance()
@@ -348,7 +440,8 @@ fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<Pair<Li
 
     val userResult = db.collection("users").document(email).collection("Messages").orderBy("timestamp", Query.Direction.DESCENDING).get().await()
     val userLatestMessage = userResult.documents.getOrNull(0)?.getString("message") ?: "No Messages"
-    val userLatestMessageTime = userResult.documents.getOrNull(0)?.getTimestamp("timestamp")?.toDate()?.let { dateFormat.format(it) } ?: "00:00"
+    val lastmessagetime = userResult.documents.getOrNull(0)?.getTimestamp("timestamp")
+    val timestampInMillis = lastmessagetime?.seconds?.times(1000)?.plus(lastmessagetime.nanoseconds / 1000000) ?: 0L
 
     val result = db.collection("users").document(email).collection("Friends").get().await()
     for (document in result.documents) {
@@ -360,19 +453,20 @@ fun getFriendsEmails(userEmail: String, dataStore: StoreUserEmail): Flow<Pair<Li
             val username = friendData.getString("Username")
             val mood = friendData.getString("Mood")
             val lastmessage = friendMessagesRef.documents.getOrNull(0)?.getString("message") ?: "No Messages"
-            val lastmessagetime = friendMessagesRef.documents.getOrNull(0)?.getTimestamp("timestamp")?.toDate()?.let { dateFormat.format(it) } ?: "00:00"
+            val lastmessagetime = friendMessagesRef.documents.getOrNull(0)?.getTimestamp("timestamp")
+            val timestampInMillis = lastmessagetime?.seconds?.times(1000)?.plus(lastmessagetime.nanoseconds / 1000000) ?: 0L
             Log.d("Refresh", "FriendEmail is $status & $username is cirrenttt & $lastmessage is LAST mEsaage")
             if (username != null) {
-                friendEmailsAndUsernames.add(FriendsData(Username = username, Email = friendEmail, Mood = mood, lastMessage = lastmessage, lastMessageTime = lastmessagetime.toString() ))
+                friendEmailsAndUsernames.add(FriendsData(Username = username, Email = friendEmail, Mood = mood, lastMessage = lastmessage, lastMessageTime = timestampInMillis ))
             }
         }
     }
-    emit(friendEmailsAndUsernames to (userLatestMessage to userLatestMessageTime))
+    emit(friendEmailsAndUsernames to (userLatestMessage to timestampInMillis))
 }
 
 fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = flow {
     val email = dataStore.getEmail.first()
-    Log.d("STORE2", "Fetched $email in getFriendsEmailsAndUsernames in GETFRIENDREQUESTS")
+    Log.d("getFriendRequests", "Fetched $email in getFriendsEmailsAndUsernames in GETFRIENDREQUESTS")
     val db = FirebaseFirestore.getInstance()
 
     val friendRequestsEmailsAndUsernamesAndBio = mutableListOf<FriendRequests>()
@@ -381,15 +475,15 @@ fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = f
     for(document in result.documents) {
         val friendEmail = document.getString("Email")
         val status = document.getBoolean("Status")
-        Log.d("STORE2", "INSIDE and this is frinedEMAIL $friendEmail in GETFRIENDREQUESTS")
+        Log.d("getFriendRequests", "INSIDE and this is frinedEMAIL $friendEmail in GETFRIENDREQUESTS")
         if (friendEmail != null && status == false) {
             val friendData = db.collection("users").document(friendEmail).get().await()
             val username = friendData.getString("Username")
             val email = friendData.getString("Email")
             val bio = friendData.getString("Bio")
-            Log.d("STORE2", "Username is NOT NULL $username in GETFRIENDREQUESTS")
+            Log.d("getFriendRequests", "Username is NOT NULL $username in GETFRIENDREQUESTS")
             if (username != null) {
-                Log.d("STORE2", "ADDED $username inside snapshot")
+                Log.d("getFriendRequests", "ADDED $username inside snapshot")
                 friendRequestsEmailsAndUsernamesAndBio.add(FriendRequests(username = username, email = email.toString(), bio = bio.toString()))
             }
         }
@@ -402,12 +496,12 @@ suspend fun acceptFriendRequest(email: String, dataStore: StoreUserEmail) {
 
     val db = FirebaseFirestore.getInstance()
     val userRequestsRef = db.collection("users").document(currentUserEmail).collection("Requests")
-    val userFriendsRef = db.collection("users").document(currentUserEmail).collection("Friends")
+    //val userFriendsRef = db.collection("users").document(currentUserEmail).collection("Friends")
     val friendRef = db.collection("users").document(email).collection("Friends")
 
     val requestDocument = userRequestsRef.document(email)
     val requestDocument2 = friendRef.document(currentUserEmail)
-    val requestDocument3 = userFriendsRef.document(email)
+    //val requestDocument3 = userFriendsRef.document(email)
 
     val requestData = hashMapOf(
         "Email" to email,
@@ -421,7 +515,7 @@ suspend fun acceptFriendRequest(email: String, dataStore: StoreUserEmail) {
     try {
         requestDocument.set(requestData, SetOptions.merge()).await()
         requestDocument2.set(requestData2,SetOptions.merge()).await()
-        requestDocument3.set(requestData, SetOptions.merge()).await()
+        //requestDocument3.set(requestData, SetOptions.merge()).await()
         Log.d("STORE", "Friend request from $email accepted")
     } catch (e: Exception) {
         Log.e("STORE", "Error accepting friend request: $e")

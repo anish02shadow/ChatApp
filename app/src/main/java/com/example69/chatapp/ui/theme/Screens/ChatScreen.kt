@@ -219,7 +219,7 @@ fun MessagesList(
             item {
                 DateSeparator(date)
             }
-            items(dateMessages, key = { it.timestamp }) { message ->
+            items(dateMessages) { message ->
                 ChatRow(
                     direction = !canChat!!,
                     message = message.message,

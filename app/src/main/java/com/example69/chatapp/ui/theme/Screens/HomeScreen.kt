@@ -1,5 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class
-)
+@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.example69.chatapp.ui.theme.Screens
 
@@ -42,7 +41,6 @@ import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -57,8 +55,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 
@@ -70,11 +66,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.LightGray
 import androidx.compose.ui.graphics.ColorFilter
@@ -86,26 +79,19 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
-import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
-import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
 import com.example69.chatapp.R
-import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addFriend
 import com.example69.chatapp.firebase.addMood
 import com.example69.chatapp.firebase.getFriendsEmails
-import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.firebase.getMood
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Observer
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example69.chatapp.data.FriendPhoto
 import com.example69.chatapp.realmdb.FriendMessagesRealm
@@ -114,12 +100,14 @@ import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collectIndexed
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.TimeZone
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit) {
+fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit,dataStore: StoreUserEmail) {
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
 
@@ -223,13 +211,17 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFrie
         var Expanded by rememberSaveable {
             mutableStateOf(false)
         }
+        val scope = rememberCoroutineScope()
         IconButton(onClick = { Expanded = true }) {
             Icon(painter = painterResource(id = R.drawable.baseline_more_vert_24 ), contentDescription = "More Vert", tint = Black)
             DropdownMenu(expanded = Expanded , onDismissRequest = { Expanded = false }) {
                 DropdownMenuItem(text = { Text("Add Friends") }, onClick = { updatePopUp(true) }, colors = MenuDefaults.itemColors(
                     ))
                 DropdownMenuItem(text = { Text("Log Out") }, onClick = { FirebaseAuth.getInstance().signOut()
-                    onLogOutPress()
+                    scope.launch {
+                        dataStore.saveEmail("")
+                        onLogOutPress()
+                    }
                 }
                 )
                 DropdownMenuItem(text = { Text("Check Requests") }, onClick = { onFriendRequests() })
@@ -354,19 +346,19 @@ fun CustomStyleTextField2(
 @Composable
 fun HomeScreen(
     onLogOutPress:() ->Unit = {},
-    friends: List<FriendMessagesRealm>,
+    //friends: List<FriendMessagesRealm>?,
     email2: String,
     dataStore: StoreUserEmail,
-    onClick: (String,String, String) -> Unit,
+    onClick: (String, String, String) -> Unit,
     onNavigateToChat: (Boolean?) -> Unit,
     onFriendRequests: () ->Unit,
     photoUrls: List<FriendPhoto>,
-    userMessagesState: Pair<String?, String>,
+    //userMessagesState: Pair<String?, Long>,
     userProfileImage: FriendPhoto,
-    onFriendsChange: (List<FriendMessagesRealm>) ->Unit,
-    onUserMessageStateChange: (Pair<String?, String>) ->Unit,
+    //onFriendsChange: (List<FriendMessagesRealm>) ->Unit,
+    //onUserMessageStateChange: (Pair<String?, Long>) ->Unit,
     viewModel: MainViewModel,
-    moodOn: String?,
+    //moodOn: String?,
     colorViewModel: ColorViewModel
 
 ) {
@@ -381,6 +373,8 @@ fun HomeScreen(
         key = "RealmViewModel",
         factory = RealmViewModelFactory(viewModel, dataStore)
     )
+
+    //val realmViewModel = viewModel<RealmViewModel>()
 
 
     val emailState = remember { mutableStateOf("") }
@@ -399,18 +393,19 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     //var friendsEmails by remember { mutableStateOf(emptyList<String>()) }
 
-    var userdata by remember { mutableStateOf(friends) }
+    //var userdata by remember { mutableStateOf(friends) }
 
 
     var friendsPhotos by remember { mutableStateOf(photoUrls) }
     var userPhotoUrl by remember { mutableStateOf(userProfileImage) }
 
-    var latestMessage by remember { mutableStateOf(userMessagesState.first) }
-    var latestMessageTime by remember { mutableStateOf(userMessagesState.second) }
+    //var latestMessage by remember { mutableStateOf(userMessagesState.first) }
+    //var latestMessageTime by remember { mutableStateOf(userMessagesState.second) }
 
-    var mood by remember {
-        mutableStateOf(moodOn)
-    }
+//    var mood by remember {
+//        mutableStateOf("No Mood")
+//    }
+
 
 //    LaunchedEffect(friends) {
 //        friends.collect { (friendsList, messageData) ->
@@ -427,14 +422,18 @@ fun HomeScreen(
 //        }
 //    }
 
+    val USERDATA by realmViewModel.friendMessagesRealm.collectAsState()
+    val UserLatestMessage by realmViewModel.userLatestMessage.collectAsState()
+    //val UserLatestMessageTime by realmViewModel.userLatestMessageTime.collectAsState()
+    val UserLatestMessageTime = 0
+    val UserMood by realmViewModel.userMood.collectAsState()
+
     val sheetState = rememberModalBottomSheetState()
 
-
-
-    var refreshData by remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullToRefreshState()
     if (pullRefreshState.isRefreshing) {
         val friendemails = getFriendsEmails(emailState.value, dataStore)
+        Log.e("ONCLICK", "Are getMood u called here?")
         val getmood = getMood(email2)
         LaunchedEffect(true) {
             Log.e("Refresh", "Collecting FRIENDEMAILS HomeScreen")
@@ -446,26 +445,29 @@ fun HomeScreen(
                         Username = friendsData.Username
                         Mood = friendsData.Mood.toString()
                         lastMessage = friendsData.lastMessage.toString()
-                        lastMessageTime = friendsData.lastMessageTime.toString()
+                        lastMessageTime = friendsData.lastMessageTime!!
                     }
                 }
-                userdata = friendMessagesRealm
-                latestMessage = messageData.first ?: ""
-                latestMessageTime = messageData.second
-            }
-            getmood.collect{ moodnew ->
-                mood = moodnew
+                getmood.collect{ moodnew ->
+                    realmViewModel.updateMood(moodnew.toString())
+                }
+                    realmViewModel.updateData(friendMessagesRealm,
+                        messageData.first.toString(), latestmessagetime = messageData.second.toLong(),UserMood)
+//                userdata = friendMessagesRealm
+//                latestMessage = messageData.first ?: ""
+//                latestMessageTime = messageData.second
             }
             Log.e("REALM2","Are u called here addMessagesToRealm???")
             realmViewModel.addMessagesToRealm(email2)
-            viewModel.getmood(email2)
-            onFriendsChange(userdata)
-            onUserMessageStateChange(latestMessage to latestMessageTime)
-            //viewModel.getFriendsAndMessages()
+//            realmViewModel.updateFriendsList(email2)
+//            viewModel.getmood(email2)
+//            onFriendsChange(userdata)
+//            onUserMessageStateChange(latestMessage to latestMessageTime)
+//            //viewModel.getFriendsAndMessages()
 
             pullRefreshState.endRefresh()
         }
-        Log.e("Refresh", "Refesh done and updateddd OUTSIDE: $latestMessage")
+        //Log.e("Refresh", "Refesh done and updateddd OUTSIDE: $latestMessage")
     }
     Box(
         modifier = Modifier
@@ -482,10 +484,11 @@ fun HomeScreen(
                 updatePopUp = { newVal -> showPopUp = newVal },
                 onLogOutPress,
                 onFriendRequests = onFriendRequests,
-                friends = userdata.sortedBy { it.Username },
+                friends = USERDATA.sortedBy { it.Username } ,
                 sheetState = sheetState,
                 email = email2,
-                mood = mood
+                mood = UserMood,
+                dataStore = dataStore
             )
             Box(
                 modifier = Modifier
@@ -526,7 +529,7 @@ fun HomeScreen(
                         },
                         email = email2,
                         onMoodChange = {newVal ->
-                            mood = newVal
+                            realmViewModel.updateMood(newVal)
                         }
 
                     )
@@ -540,11 +543,11 @@ fun HomeScreen(
 //                        matchingPhoto?.let { friendData to it }
 //                    }
 
-                    val userDataFlow = remember {MutableStateFlow(userdata.sortedBy { it.Username })}
-
-                    LaunchedEffect(userdata) {
-                        userDataFlow.value = userdata.sortedBy { it.Username }
-                    }
+//                    val userDataFlow = remember {MutableStateFlow(userdata.sortedBy { it.Username })}
+//
+//                    LaunchedEffect(userdata) {
+//                        userDataFlow.value = userdata.sortedBy { it.Username }
+//                    }
 
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
@@ -552,26 +555,26 @@ fun HomeScreen(
                         item {
                             UserEachRow(
                                 username = email2,
-                                latestMessage = latestMessage.toString(),
+                                latestMessage = UserLatestMessage,
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = true,
                                 email = email2,
-                                latestMessageTime = latestMessageTime.toString(),
+                                latestMessageTime = formatTime(UserLatestMessageTime.toLong()),
                                 photourl = userPhotoUrl.photourl,
                                 colorViewModel = colorViewModel
                             )
                         }
-                        items(userDataFlow.value) { friendData ->
+                        items(USERDATA) { friendData ->
                             val matchingPhoto = friendsPhotos.firstOrNull { it.email == friendData.email }
                             UserEachRow(
                                 username = friendData.Username,
-                                latestMessage = friendData.lastMessage.toString(),
+                                latestMessage = friendData.lastMessage,
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = false,
                                 email = friendData.email,
-                                latestMessageTime = friendData.lastMessageTime.toString(),
+                                latestMessageTime = formatTime(friendData.lastMessageTime),
                                 photourl = matchingPhoto?.photourl.toString(),
                                 colorViewModel = colorViewModel
                             )
@@ -587,12 +590,18 @@ fun HomeScreen(
         )
     }
 }
+fun formatTime(milliseconds: Long): String {
+    val dateFormat = SimpleDateFormat("HH:mm")
+    dateFormat.timeZone = TimeZone.getDefault()
+    return dateFormat.format(Date(milliseconds))
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit, friends:List<FriendMessagesRealm>,
                       sheetState: SheetState,
-                      email: String, mood: String?) {
+                      email: String, mood: String?,
+                      dataStore: StoreUserEmail) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -609,7 +618,7 @@ fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit,
             )*/
             .padding(start = 20.dp, top = 25.dp)
     ) {
-        Searchbar2(updatePopUp, onLogOutPress = onLogOutPress, onFriendRequests = onFriendRequests  )
+        Searchbar2(updatePopUp, onLogOutPress = onLogOutPress, onFriendRequests = onFriendRequests, dataStore = dataStore  )
 
         Column(
             modifier = Modifier

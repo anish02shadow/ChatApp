@@ -5,5 +5,5 @@ data class FriendsData(
     val Email: String,
     val Mood: String?,
     val lastMessage: String?,
-    val lastMessageTime: String?,
+    val lastMessageTime: Long?,
 )

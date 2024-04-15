@@ -11,14 +11,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example69.chatapp.BaseApplication.Companion.realm
 import com.example69.chatapp.MainActivity
 import com.example69.chatapp.data.FriendPhoto
 import com.example69.chatapp.data.FriendsData
@@ -78,7 +79,7 @@ fun MainNavigation(activity: MainActivity) {
 
     var (friendsList) = remember { mutableStateOf<List<FriendMessagesRealm>>(emptyList()) }
     var (photoUrls) = remember { mutableStateOf<List<FriendPhoto>>(emptyList()) }
-    var (userMessagesState) = remember { mutableStateOf<Pair<String?, String>>("No Messages" to "00:00") }
+    var (userMessagesState) = remember { mutableStateOf<Pair<String?, Long>>("No Messages" to 0) }
     var (userProfileImage) = remember { mutableStateOf<FriendPhoto>(FriendPhoto("No Photo",emailState.value)) }
     var userMOOD = remember { mutableStateOf<String>("") }
 
@@ -92,6 +93,11 @@ fun MainNavigation(activity: MainActivity) {
         key = "MainViewModel",
         factory = MainViewModelFactory(dataStore, navController)
     )
+
+    //val savedStateHandle = rememberSaveable(saver = SavedStateHandle.Saver) { SavedStateHandle() }
+
+
+    //val realmViewModel = viewModel<RealmViewModel>()
 
     val realmViewModel: RealmViewModel = viewModel(
         key = "RealmViewModel",
@@ -116,7 +122,7 @@ fun MainNavigation(activity: MainActivity) {
         navController.navigate("CHAT_SCREEN/$canChat")
     }
 
-    val FriendMessagesRealm by realmViewModel.friendmessages.collectAsState()
+    //val FriendMessagesRealm by realmViewModel.friendmessages.collectAsState()
 
 
 
@@ -131,7 +137,9 @@ fun MainNavigation(activity: MainActivity) {
                     onNavigateToCreateAccount = { navController.navigate(SIGNUP_SCREEN) },
                     onEmailChange = { newVal ->
                         scope.launch {
+                            Log.e("ONCLICK","SAVE Emailc alled in loginscreen navhost")
                             dataStore.saveEmail(newVal)
+                            Log.e("ONCLICK","SAVE Email in loginscreen navhost is: ${dataStore.getEmail}")
                             emailState.value = newVal
                         }
                     },
@@ -148,38 +156,42 @@ fun MainNavigation(activity: MainActivity) {
                     emailState.value = dataStore.getEmail.first()
                     viewModel.onEmailChange(emailState.value)
                     viewModel.getmood(emailState.value)
+                    Log.e("ONCLICK","getFRIENDSphoto are u called here in HOME_screen navhost composable where email: ${emailState.value}?")
                     getFriendsPhotos(dataStore).collect { (photos, userProfileImagee) ->
                         photoUrls = photos
                         userProfileImage = userProfileImagee
                     }
                 }
                 if (emailState.value.isNotEmpty()) {
-                    Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
-                    realmViewModel.getDATAA(emailState.value)
+                    Log.e("LOL", "${emailState.value} is the email in HOMESCREEN")
+
+                    //realmViewModel.updateFriendsList(emailState.value)
+
                     //realmViewModel.addMessagesToRealm()
-                    val friendMessagesRealm by realmViewModel.friendMessagesRealm.collectAsState(
-                        initial = emptyList()
-                    )
-                    Log.e("REALM2", "FriendMessagesRealm is ${friendMessagesRealm} in HOME SCREEN")
-                    if (userIsSignedIn && friendMessagesRealm.isNotEmpty()) {
-                        var currentUserRecord =
-                            friendMessagesRealm.find { it.email == emailState.value }
-                        var updatedList =
-                            friendMessagesRealm.filter { it.email != emailState.value }
-                        var orderedList = updatedList.sortedBy { it.Username }
-                        if(currentUserRecord!=null){
-                            userMessagesState =
-                                currentUserRecord.lastMessage to currentUserRecord.lastMessageTime
-                            userMOOD.value = currentUserRecord.Mood
-                        }
-                        friendsList = orderedList
+//                    val friendMessagesRealm by realmViewModel.friendMessagesRealm.collectAsState(
+//                        initial = emptyList()
+//                    )
+                    Log.e("LOL", "FriendMessagesRealm is ${realmViewModel.friendMessagesRealm} in HOME SCREEN")
+                    if (userIsSignedIn && realmViewModel.friendMessagesRealm!= emptyList<FriendMessagesRealm>()) {
+//                        var currentUserRecord =
+//                            friendMessagesRealm.find { it.email == emailState.value }
+//                        var updatedList =
+//                            friendMessagesRealm.filter { it.email != emailState.value }
+//                        var orderedList = updatedList.sortedBy { it.Username }
+//                        if(currentUserRecord!=null){
+//                            userMessagesState =
+//                                currentUserRecord.lastMessage to currentUserRecord.lastMessageTime
+//                            userMOOD.value = currentUserRecord.Mood
+//                        }
+//                        friendsList = orderedList
                         Log.e("REALM2", "friendslist size is ${friendsList.size}")
                         HomeScreen(
                             onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
-                            friends = friendsList,
+                            //friends = realmViewModel.friendsList.collectAsState().value,
                             email2 = emailState.value,
                             dataStore = dataStore,
                             onClick = { email, username, photourl ->
+                                Log.e("ONCLICK","$email is stored in friendEmail.value")
                                 friendEmail.value = email
                                 friendUsername.value = username
                                 photoURL.value = photourl
@@ -187,13 +199,13 @@ fun MainNavigation(activity: MainActivity) {
                             onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean) },
                             onFriendRequests = { navController.navigate(FRIEND_REQUESTS) },
                             photoUrls = photoUrls,
-                            userMessagesState = userMessagesState,
+                            //userMessagesState = userMessagesState,
                             userProfileImage = userProfileImage,
-                            onFriendsChange = { newVal -> friendsList = newVal },
-                            onUserMessageStateChange = { newVal -> userMessagesState = newVal },
+                            //onFriendsChange = { realmViewModel.friendsList.collectAsState().value = it  },
+                            //onUserMessageStateChange = { realmViewModel.userMessagesState.collectAsState().value = it  },
                             viewModel = viewModel,
                             //moodOn = viewModel.MOOD.value,
-                            moodOn = userMOOD.value,
+                            //moodOn = realmViewModel.userMood.collectAsState().value,
                             colorViewModel = colorViewModel
                         )
                     }

@@ -47,6 +47,7 @@ import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.updateNameAndBio
+import com.example69.chatapp.firebase.updateNameAndBioWithoutBitmap
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -175,10 +176,15 @@ fun SignUpScreenEmail(activity: Activity,
                         }
                         else{
                             scope.launch {
-                                selectedPhotobitmap?.let {
-                                    updateNameAndBio(nameState, bioState, dataStore,
-                                        it
-                                    )
+                                if(selectedPhotobitmap!=null){
+                                    selectedPhotobitmap?.let {
+                                        updateNameAndBio(nameState, bioState, dataStore,
+                                            it
+                                        )
+                                }
+                                }
+                                else{
+                                    updateNameAndBioWithoutBitmap(nameState,bioState,dataStore)
                                 }
                                 Log.e("STORE","CALLED NAVIGATEHOME")
                                 onNavigateToHome()}

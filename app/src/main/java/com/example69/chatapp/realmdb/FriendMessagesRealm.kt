@@ -11,6 +11,6 @@ class FriendMessagesRealm: RealmObject{
     var message:RealmList<MessageRealm> = realmListOf()
     var Mood: String = "No Mood"
     var lastMessage: String = "FriendMessagesRealm"
-    var lastMessageTime: String = "FriendMessagesRealmTime"
+    var lastMessageTime: Long = 0
     var Username: String = ""
 }
