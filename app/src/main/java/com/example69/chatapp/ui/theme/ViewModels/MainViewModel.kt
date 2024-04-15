@@ -7,6 +7,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.example69.chatapp.BaseApplication.Companion.realm
+import com.example69.chatapp.data.FriendPhoto
 import com.example69.chatapp.data.FriendRequests
 import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.Message
@@ -18,11 +20,14 @@ import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.firebase.getMood
 import com.example69.chatapp.firebase.retrieveMessages
 import com.example69.chatapp.navigation.HOME_SCREEN
+import com.example69.chatapp.realmdb.FriendMessagesRealm
+import com.example69.chatapp.realmdb.RealmViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -33,7 +38,7 @@ import kotlin.coroutines.suspendCoroutine
 
 class MainViewModel(
     private val dataStore: StoreUserEmail,
-    private val navController: NavController
+    private val navController: NavController,
 ) : ViewModel() {
     public val _emailState = mutableStateOf("")
     val emailState: State<String> = _emailState
@@ -46,8 +51,8 @@ class MainViewModel(
     )
     val friendsAndMessages: State<Pair<List<FriendsData>, Pair<String?, String>>?> = _friendsAndMessages
 
-    private val _initialPhotoUrls = mutableStateOf<Pair<List<String>, String>>(emptyList<String>() to "")
-    val initialPhotoUrls: State<Pair<List<String>, String>> = _initialPhotoUrls
+    private val _initialPhotoUrls = mutableStateOf<Pair<List<FriendPhoto>, FriendPhoto>>(emptyList<FriendPhoto>() to FriendPhoto("No Photo",emailState.value))
+    val initialPhotoUrls = _initialPhotoUrls
 
     private val _mood = mutableStateOf<String?>("")
     val MOOD: State<String?> = _mood
@@ -78,6 +83,7 @@ class MainViewModel(
 //            getPhotoUrls()
         }
     }
+
 
     public fun getFriendsAndMessages() {
         viewModelScope.launch {
@@ -170,7 +176,8 @@ class MainViewModel(
     fun onacceptFriendRequest(email: String) {
         viewModelScope.launch {
             acceptFriendRequest(email,dataStore)
-            getFriendsAndMessages()
+            //
+            // getFriendsAndMessages()
             getPhotoUrls()
         }
     }
@@ -188,7 +195,7 @@ class MainViewModel(
             _emailState.value = dataStore.getEmail.first() ?: ""
             _userIsSignedIn.value = FirebaseAuth.getInstance().currentUser != null
             Log.e("Refresh", "In ViewModel ${_userIsSignedIn.value}")
-            getFriendsAndMessages()
+            //getFriendsAndMessages()
             getPhotoUrls()
         }
     }

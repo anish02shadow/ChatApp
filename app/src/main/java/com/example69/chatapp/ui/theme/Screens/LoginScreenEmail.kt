@@ -46,6 +46,7 @@ import com.example69.chatapp.firebase.storePhoneNumber
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.example69.chatapp.navigation.LOGIN_SCREEN
 import com.example69.chatapp.navigation.SIGNUP_SCREEN
+import com.example69.chatapp.realmdb.RealmViewModel
 import com.example69.chatapp.utils.ResultState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,7 +57,8 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                 activity: Activity,
                      onNavigateToCreateAccount: ()->Unit = {},
                      onEmailChange:(String) ->Unit,
-                viewModel: AuthViewModel = hiltViewModel()) {
+                viewModel: AuthViewModel = hiltViewModel(),
+                     realmViewModel: RealmViewModel) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -203,6 +205,7 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                                                             )
                                                             //storePhoneNumber(phoneState)
                                                             onEmailChange(phoneState)
+                                                            realmViewModel.addMessagesToRealm(phoneState)
                                                             isDialog = false
                                                             Log.e("STORE", "cALLING Naviagte Home")
                                                             onNavigateToHome()

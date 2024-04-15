@@ -98,9 +98,9 @@ fun ChatScreen(
 ) {
 
     val lazyListState = rememberLazyListState()
-    var message by remember { mutableStateOf("") }
 
-    var Messages by remember { mutableStateOf(messages) }
+
+    var (Messages,setCurrentMessages) = remember { mutableStateOf(messages) }
 
 //    var Messages by remember { mutableStateOf(emptyList<Message>()) }
 //
@@ -115,6 +115,20 @@ fun ChatScreen(
 //        }
 //    }
 
+    LaunchedEffect(messages) {
+        setCurrentMessages(messages)
+        if (Messages.isNotEmpty()) {
+            lazyListState.scrollToItem(Messages.size - 1)
+        }
+    }
+
+    val onMessageEntered: (String) -> Unit = { newMessage ->
+        val currentTimestamp = System.currentTimeMillis()
+        setCurrentMessages(Messages + MessageRealm().apply {
+            message = newMessage
+            timestamp = currentTimestamp
+        })
+    }
 
     Box(
         modifier = Modifier
@@ -167,7 +181,8 @@ fun ChatScreen(
                     .align(BottomCenter),
                 canChat = canChat,
                 friendEmail = it,
-                onTrailingIconClick = onTrailingIconClick
+                onTrailingIconClick = onTrailingIconClick,
+                addToMessages = onMessageEntered
             )
         }
     }
@@ -311,7 +326,9 @@ fun CustomTextField(
     onValueChange: (String) -> Unit,
     canChat: Boolean?,
     onTrailingIconClick: () -> Unit,
-    friendEmail:  String
+    friendEmail:  String,
+    addToMessages: (String) -> Unit
+
 ) {
     TextField(
         value = text, onValueChange = { onValueChange(it) },
@@ -337,7 +354,7 @@ fun CustomTextField(
         ),
         leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
         trailingIcon = {
-            CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick)
+            CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick, addToMessages = addToMessages)
                        },
         modifier = modifier.fillMaxWidth(),
         shape = CircleShape
@@ -368,7 +385,8 @@ fun CommonIconButtonDrawable(
     friendEmail: String,
     canChat: Boolean?,
     message: String,
-    onTrailingIconClick: () -> Unit
+    onTrailingIconClick: () -> Unit,
+    addToMessages: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     Box(
@@ -379,6 +397,7 @@ fun CommonIconButtonDrawable(
                 onTrailingIconClick()
                 if (canChat == true) {
                     scope.launch {
+                        addToMessages(message)
                         addChat(message, friendEmail)
                     }
                 } else {
@@ -408,7 +427,7 @@ fun UserNameRow(
 
 ) {
     val color = remember { mutableStateOf(colorViewModel.getColor(email)) }
-    Log.e("twophotu", "Photo is: $photourl")
+//    Log.e("twophotu", "Photo is: $photourl")
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
             .data(photourl)
@@ -504,5 +523,3 @@ fun UserNameRow(
         }
     }
 }
-
-

@@ -107,10 +107,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example69.chatapp.data.FriendPhoto
+import com.example69.chatapp.realmdb.FriendMessagesRealm
 import com.example69.chatapp.realmdb.RealmViewModel
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectIndexed
 
 
@@ -351,16 +354,16 @@ fun CustomStyleTextField2(
 @Composable
 fun HomeScreen(
     onLogOutPress:() ->Unit = {},
-    friends: List<FriendsData>,
+    friends: List<FriendMessagesRealm>,
     email2: String,
     dataStore: StoreUserEmail,
     onClick: (String,String, String) -> Unit,
     onNavigateToChat: (Boolean?) -> Unit,
     onFriendRequests: () ->Unit,
-    photoUrls: List<String>,
+    photoUrls: List<FriendPhoto>,
     userMessagesState: Pair<String?, String>,
-    userProfileImage: String,
-    onFriendsChange: (List<FriendsData>) ->Unit,
+    userProfileImage: FriendPhoto,
+    onFriendsChange: (List<FriendMessagesRealm>) ->Unit,
     onUserMessageStateChange: (Pair<String?, String>) ->Unit,
     viewModel: MainViewModel,
     moodOn: String?,
@@ -427,6 +430,7 @@ fun HomeScreen(
     val sheetState = rememberModalBottomSheetState()
 
 
+
     var refreshData by remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullToRefreshState()
     if (pullRefreshState.isRefreshing) {
@@ -435,18 +439,29 @@ fun HomeScreen(
         LaunchedEffect(true) {
             Log.e("Refresh", "Collecting FRIENDEMAILS HomeScreen")
             friendemails.collect { (friendsList, messageData) ->
-                userdata = friendsList
+                val friendMessagesRealm = friendsList.map { friendsData ->
+                    FriendMessagesRealm().apply {
+                        useremail = emailState.value
+                        email = friendsData.Email
+                        Username = friendsData.Username
+                        Mood = friendsData.Mood.toString()
+                        lastMessage = friendsData.lastMessage.toString()
+                        lastMessageTime = friendsData.lastMessageTime.toString()
+                    }
+                }
+                userdata = friendMessagesRealm
                 latestMessage = messageData.first ?: ""
                 latestMessageTime = messageData.second
             }
             getmood.collect{ moodnew ->
                 mood = moodnew
             }
-            realmViewModel.addMessagesToRealm()
+            Log.e("REALM2","Are u called here addMessagesToRealm???")
+            realmViewModel.addMessagesToRealm(email2)
             viewModel.getmood(email2)
             onFriendsChange(userdata)
             onUserMessageStateChange(latestMessage to latestMessageTime)
-            viewModel.getFriendsAndMessages()
+            //viewModel.getFriendsAndMessages()
 
             pullRefreshState.endRefresh()
         }
@@ -467,7 +482,7 @@ fun HomeScreen(
                 updatePopUp = { newVal -> showPopUp = newVal },
                 onLogOutPress,
                 onFriendRequests = onFriendRequests,
-                friends = userdata,
+                friends = userdata.sortedBy { it.Username },
                 sheetState = sheetState,
                 email = email2,
                 mood = mood
@@ -516,8 +531,20 @@ fun HomeScreen(
 
                     )
 
-                    val userDataWithPhotos: List<Pair<FriendsData, String>> =
-                        userdata.zip(friendsPhotos)
+//                    val userDataWithPhotos: List<Pair<FriendMessagesRealm, FriendPhoto>> =
+//                        userdata.zip(friendsPhotos)
+
+//                    val sortedUserData = userdata.sortedBy { it.Username }
+//                    var userDataWithPhotos: List<Pair<FriendMessagesRealm, FriendPhoto>> = sortedUserData.mapNotNull { friendData ->
+//                        val matchingPhoto = friendsPhotos.firstOrNull { it.email == friendData.email }
+//                        matchingPhoto?.let { friendData to it }
+//                    }
+
+                    val userDataFlow = remember {MutableStateFlow(userdata.sortedBy { it.Username })}
+
+                    LaunchedEffect(userdata) {
+                        userDataFlow.value = userdata.sortedBy { it.Username }
+                    }
 
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
@@ -531,20 +558,21 @@ fun HomeScreen(
                                 canChat = true,
                                 email = email2,
                                 latestMessageTime = latestMessageTime.toString(),
-                                photourl = userPhotoUrl,
+                                photourl = userPhotoUrl.photourl,
                                 colorViewModel = colorViewModel
                             )
                         }
-                        items(userDataWithPhotos) { (friend, photoUrl) ->
+                        items(userDataFlow.value) { friendData ->
+                            val matchingPhoto = friendsPhotos.firstOrNull { it.email == friendData.email }
                             UserEachRow(
-                                username = friend.Username,
-                                latestMessage = friend.lastMessage.toString(),
+                                username = friendData.Username,
+                                latestMessage = friendData.lastMessage.toString(),
                                 onClick = onClick,
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = false,
-                                email = friend.Email,
-                                latestMessageTime = friend.lastMessageTime.toString(),
-                                photourl = photoUrl,
+                                email = friendData.email,
+                                latestMessageTime = friendData.lastMessageTime.toString(),
+                                photourl = matchingPhoto?.photourl.toString(),
                                 colorViewModel = colorViewModel
                             )
                         }
@@ -562,7 +590,7 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit, friends:List<FriendsData>,
+fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit, friends:List<FriendMessagesRealm>,
                       sheetState: SheetState,
                       email: String, mood: String?) {
     Column(
@@ -615,7 +643,7 @@ fun Searchbar(){
 }
 
 @Composable
-fun ViewStoryLayout(friends: List<FriendsData>, sheetState: SheetState,
+fun ViewStoryLayout(friends: List<FriendMessagesRealm>, sheetState: SheetState,
                     email: String, mood: String?) {
 
 //    var userdata by remember { mutableStateOf(emptyList<FriendsData>()) }
@@ -744,7 +772,7 @@ fun UserEachRow(
 @Composable
 fun UserStory(
     modifier: Modifier = Modifier,
-    friend: FriendsData
+    friend: FriendMessagesRealm
 ) {
     Column(
         modifier = modifier.padding(end = 10.dp)

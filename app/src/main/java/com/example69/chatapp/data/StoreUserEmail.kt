@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example69.chatapp.realmdb.RealmViewModel
+import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -37,7 +39,8 @@ class StoreUserEmail(private val context: Context) {
 
     val getEmail: Flow<String> = context.dataStore.data.map { preferences ->
         val email = preferences[USER_EMAIL_KEY] ?: ""
-        //Log.d("STORE", "Retrieved email: $email")
+        //realmViewModel.getDATAA(email)
+        Log.d("STORE", "Retrieved email: $email")
         email
     }
 

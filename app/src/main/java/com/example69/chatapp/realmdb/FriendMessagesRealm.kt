@@ -9,4 +9,8 @@ class FriendMessagesRealm: RealmObject{
     var useremail: String = ""
     @PrimaryKey var email: String = ""
     var message:RealmList<MessageRealm> = realmListOf()
+    var Mood: String = "No Mood"
+    var lastMessage: String = "FriendMessagesRealm"
+    var lastMessageTime: String = "FriendMessagesRealmTime"
+    var Username: String = ""
 }
