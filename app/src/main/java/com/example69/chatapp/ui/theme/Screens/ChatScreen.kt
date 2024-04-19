@@ -2,6 +2,7 @@ package com.example69.chatapp.ui.theme.Screens
 
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -47,6 +48,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.dataStore
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example69.chatapp.R
@@ -56,6 +60,10 @@ import com.example69.chatapp.firebase.deleteFriend
 import com.example69.chatapp.realmdb.MessageRealm
 import com.example69.chatapp.ui.theme.*
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
+import com.example69.chatapp.ui.theme.ViewModels.MessageLimitManager
+import com.example69.chatapp.ui.theme.ViewModels.MessageLimitViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -76,7 +84,7 @@ fun ChatScreen(
     dataStore: StoreUserEmail,
     onDeleteNavigateHome: () ->Unit,
     photourl: String,
-    colorViewModel: ColorViewModel
+    colorViewModel: ColorViewModel,
 ) {
 
     val lazyListState = rememberLazyListState()
@@ -282,19 +290,31 @@ fun CustomTextField(
     addToMessages: (String) -> Unit,
     dataStore: StoreUserEmail
 ) {
+    val maxLength = 190
+
+    val transformedText = remember(text) {
+        val trimmedText = if (text.length > maxLength) text.substring(0, maxLength) else text
+        mutableStateOf(trimmedText)
+    }
+
     TextField(
-        value = text, onValueChange = { onValueChange(it) },
+        value = transformedText.value,
+        onValueChange = { newString ->
+            if (newString.toByteArray(Charsets.UTF_8).size <= maxLength) {
+                transformedText.value = newString
+                onValueChange(newString)
+            }
+        },
         placeholder = {
             Text(
-                text =  "Type Message",
+                text = "Type Message",
                 style = TextStyle(
                     fontSize = 14.sp,
                     color = Color.Black
                 ),
                 textAlign = TextAlign.Center
             )
-        }
-        ,
+        },
         maxLines = 3,
         colors = TextFieldDefaults.colors(
             focusedTextColor = Color.Black,
@@ -307,11 +327,10 @@ fun CustomTextField(
         leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
         trailingIcon = {
             CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick, addToMessages = addToMessages, dataStore = dataStore)
-                       },
+        },
         modifier = modifier.fillMaxWidth(),
         shape = CircleShape
     )
-
 }
 
 @Composable
@@ -342,6 +361,13 @@ fun CommonIconButtonDrawable(
     dataStore: StoreUserEmail
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    //val messageLimitViewModel: MessageLimitViewModel = viewModel()
+    val messageLimitViewModel = remember {
+        ViewModelProvider(context as ViewModelStoreOwner).get(MessageLimitViewModel::class.java)
+    }
+    val canSendMessage = messageLimitViewModel.canSendMessage()
+    //val context = LocalContext.current
     Box(
         modifier = Modifier
             .background(Yellow, CircleShape)
@@ -349,9 +375,22 @@ fun CommonIconButtonDrawable(
             .clickable {
                 onTrailingIconClick()
                 if (canChat == true) {
-                    scope.launch {
-                        addToMessages(message)
-                        addChat(message, friendEmail, dataStore = dataStore)
+                    if (canSendMessage) {
+                        messageLimitViewModel.incrementMessageCount()
+                        scope.launch {
+                            addToMessages(message)
+                            addChat(message, friendEmail, dataStore = dataStore)
+                        }
+                    } else {
+                        val okm = "Can't send more than 50 messages per day!"
+                        val duration = Toast.LENGTH_LONG
+
+                        val toast = Toast.makeText(
+                            context,
+                            okm,
+                            duration
+                        ) // in Activity
+                        toast.show()
                     }
                 }
             }, contentAlignment = Center
@@ -382,6 +421,11 @@ fun UserNameRow(
         model = ImageRequest.Builder(LocalContext.current)
             .data(photourl)
             .build()
+    )
+
+    val sharedKeysViewModel: SharedKeysViewModel = viewModel(
+        key = "SharedKeysViewModel",
+        factory = SharedKeysViewModelFactory(dataStore)
     )
 
     val emailState = remember { mutableStateOf("") }
@@ -465,6 +509,7 @@ fun UserNameRow(
                         Expanded = false
                         scope.launch {
                             deleteFriend(email,dataStore)
+                            sharedKeysViewModel.removeEmailFromCachedSharedKeys(email)
                             onDeleteNavigateHome()
                         }
                     })

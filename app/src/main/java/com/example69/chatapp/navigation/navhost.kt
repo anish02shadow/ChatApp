@@ -32,11 +32,11 @@ import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModelFactory
 import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.math.BigInteger
 import java.security.PrivateKey
 import java.security.PublicKey
@@ -53,8 +53,16 @@ fun MainNavigation(activity: MainActivity) {
     val dataStore = StoreUserEmail(context)
 
     val emailState = remember { mutableStateOf("") }
-    val pk = remember { mutableStateOf<Pair<PrivateKey,PublicKey>>(dataStore.getDummyKeyPair().first to dataStore.getDummyKeyPair().second) }
+    var username = remember { mutableStateOf("") }
+    val dummy = dataStore.getDummyKeyPair()
+    val pk = remember { mutableStateOf<Pair<PrivateKey,PublicKey>>(dummy.first to dummy.second) }
     var userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
+    val phoneState = remember {
+        mutableStateOf("")
+    }
+    val otpState = remember {
+        mutableStateOf("")
+    }
 
     val friendEmail = remember{ mutableStateOf("") }
     val friendUsername = remember{ mutableStateOf("") }
@@ -62,17 +70,24 @@ fun MainNavigation(activity: MainActivity) {
     var (photoUrls) = remember { mutableStateOf<List<FriendPhoto>>(emptyList()) }
     var (userProfileImage) = remember { mutableStateOf<FriendPhoto>(FriendPhoto("No Photo",emailState.value)) }
 
+    val sharedKeysViewModel: SharedKeysViewModel = viewModel(
+        key = "SharedKeysViewModel",
+        factory = SharedKeysViewModelFactory(dataStore)
+    )
+
     val viewModel: MainViewModel = viewModel(
         key = "MainViewModel",
-        factory = MainViewModelFactory(dataStore, navController)
+        factory = MainViewModelFactory(dataStore, navController,sharedKeysViewModel)
     )
 
     val realmViewModel: RealmViewModel = viewModel(
         key = "RealmViewModel",
-        factory = RealmViewModelFactory(viewModel, dataStore)
+        factory = RealmViewModelFactory(viewModel, dataStore,sharedKeysViewModel)
     )
+
     LaunchedEffect(Unit) {
         val email = dataStore.getEmail.first()
+        username.value = dataStore.getUsername.first()
         emailState.value = email ?: ""
         realmViewModel.addMessagesToRealm(emailState.value)
         viewModel.onEmailChange(emailState.value)
@@ -94,6 +109,7 @@ fun MainNavigation(activity: MainActivity) {
                                 emailState.value = newVal
                                 pk.value = dataStore.savePK(newPass,newVal)
                                 dataStore.saveEmail(newVal)
+                            sharedKeysViewModel.preloadDecryptedSharedKeys(dataStore)
                             when(pk.value){
                                 BigInteger.ZERO->{}
                                     else ->{
@@ -102,16 +118,22 @@ fun MainNavigation(activity: MainActivity) {
                             }
                         }
                     },
-                    realmViewModel = realmViewModel
+                    realmViewModel = realmViewModel,
+                    dataStore = dataStore,
+                    onUsernameCheck = {newVal ->
+                        username.value = newVal
+                    }
                 )
             }
         }
         composable(HOME_SCREEN) {
             userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
+            var username = ""
             if (!userIsSignedIn) {
                 navController.navigate(LOGIN_SCREEN)
             } else {
                 LaunchedEffect(emailState.value) {
+                    Log.e("USERNAMEVLAUE", "Username is: $username HOMESCREENN")
                     emailState.value = dataStore.getEmail.first()
                     viewModel.onEmailChange(emailState.value)
                     viewModel.getmood(emailState.value)
@@ -119,12 +141,12 @@ fun MainNavigation(activity: MainActivity) {
                         photoUrls = photos
                         userProfileImage = userProfileImagee
                     }
-                   // Log.e("ENCRYPTIONN","Launched effect over IG")
+                    // Log.e("ENCRYPTIONN","Launched effect over IG")
                 }
                 if (emailState.value.isNotEmpty()) {
                     //Log.e("ENCRYPTIONN","emailstate.value not empty")
-                    if (userIsSignedIn && realmViewModel.friendMessagesRealm!= emptyList<FriendMessagesRealm>()) {
-                       // Log.e("ENCRYPTIONN","ecalled home screen")
+                    if (userIsSignedIn && realmViewModel.friendMessagesRealm != emptyList<FriendMessagesRealm>()) {
+                        // Log.e("ENCRYPTIONN","ecalled home screen")
                         HomeScreen(
                             onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
                             email2 = emailState.value,
@@ -139,12 +161,14 @@ fun MainNavigation(activity: MainActivity) {
                             photoUrls = photoUrls,
                             userProfileImage = userProfileImage,
                             viewModel = viewModel,
-                            colorViewModel = colorViewModel
+                            colorViewModel = colorViewModel,
+                            sharedKeysViewModel = sharedKeysViewModel
                         )
                     }
                 }
             }
         }
+
 
         composable(
             "CHAT_SCREEN/{canChat}",
@@ -170,23 +194,36 @@ fun MainNavigation(activity: MainActivity) {
                 activity = activity,
                 onEmailChange = { newVal,newPass ->
                     scope.launch {
-                        emailState.value = newVal
-                        pk.value = dataStore.savePK(newPass,newVal)
-                        dataStore.saveEmail(newVal)
-                        when(pk.value){
-                            BigInteger.ZERO->{}
-                            else ->{
-                                navController.navigate(USERNAME_SCREEN)
-                            }
+                        phoneState.value = newVal
+                        otpState.value = newPass
+                        if(!otpState.value.equals("")){
+                            navController.navigate(USERNAME_SCREEN)
                         }
                     }
                 })
         }
         composable(USERNAME_SCREEN) {
             SignUpScreenEmail(
-                activity = activity,
+                onUsernameCheck = {newVal ->
+                    username.value = newVal
+                },
                 dataStore = dataStore,
-                onNavigateToHome = { navController.navigate(HOME_SCREEN) })
+                onNavigateToHome = {
+                    scope.launch {
+                        emailState.value = phoneState.value
+                        pk.value = dataStore.savePK(otpState.value,phoneState.value)
+                        dataStore.saveEmail(phoneState.value)
+                        when(pk.value){
+                            BigInteger.ZERO->{}
+                            else ->{
+                                navController.navigate(HOME_SCREEN)
+                            }
+                        }
+                    }
+                                   },
+                activity = activity,
+                otpState = otpState.value,
+                phoneState = phoneState.value)
         }
         composable(FRIEND_REQUESTS){
             viewModel.getFriendRequests()
@@ -195,7 +232,8 @@ fun MainNavigation(activity: MainActivity) {
                     acceptFriendRequest(newVal,dataStore)
                 }
                },
-                viewModel = viewModel
+                viewModel = viewModel,
+                dataStore = dataStore
             )
         }
     }

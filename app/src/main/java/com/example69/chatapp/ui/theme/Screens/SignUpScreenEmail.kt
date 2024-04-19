@@ -22,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -45,19 +46,28 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.compose.rememberImagePainter
 import com.example69.chatapp.R
+import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.data.StoreUserEmail
+import com.example69.chatapp.firebase.storePhoneNumber
 import com.example69.chatapp.firebase.updateNameAndBio
 import com.example69.chatapp.firebase.updateNameAndBioWithoutBitmap
+import com.example69.chatapp.navigation.HOME_SCREEN
+import com.example69.chatapp.utils.ResultState
 import kotlinx.coroutines.launch
+import java.math.BigInteger
 
 
 @Composable
-fun SignUpScreenEmail(activity: Activity,
+fun SignUpScreenEmail(onUsernameCheck: (String) -> Unit,
                       dataStore: StoreUserEmail,
-                      onNavigateToHome:() ->Unit= {}) {
+                      onNavigateToHome:() ->Unit= {}, viewModel: AuthViewModel = hiltViewModel(),activity: Activity,
+                      phoneState: String, otpState: String
+) {
     val scope = rememberCoroutineScope()
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var selectedPhotobitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -72,6 +82,14 @@ fun SignUpScreenEmail(activity: Activity,
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        var isDialog by remember { mutableStateOf(false) }
+
+        if(isDialog) {
+            Dialog(onDismissRequest = { }) {
+                CircularProgressIndicator()
+            }
+        }
+
         Box(
             modifier = Modifier
                 .height(80.dp)
@@ -172,23 +190,82 @@ fun SignUpScreenEmail(activity: Activity,
                             Toast.makeText(context, "Please enter a bio", Toast.LENGTH_SHORT).show()
                         } else {
                             scope.launch {
-                                if (selectedPhotobitmap != null) {
-                                    Log.e("STORE", "updateNameAndBioWithoutBitmap started")
-                                    selectedPhotobitmap?.let {
-                                        updateNameAndBio(
-                                            nameState, bioState, dataStore,
-                                            it
-                                        )
-                                        Log.e("STORE", "updateNameAndBioWithoutBitmap didn;t finish")
-                                        onNavigateToHome()
+                                viewModel.createUserWithEmail(
+                                    phoneState,
+                                    otpState,
+                                    activity = activity
+                                ).collect {
+                                    Log.e("STORE", "CREATEUSERWITHEMAIL CALLED")
+                                    when (it) {
+                                        is ResultState.Success -> {
+                                            Log.e(
+                                                "STORE",
+                                                "SUCESSS USER EMAIL WOHOOOHOH"
+                                            )
+                                            //storePhoneNumber(phoneState)
+                                            if (selectedPhotobitmap != null) {
+                                                Log.e("CREATEUSER", "updateNameAndBioWithoutBitmap started")
+                                                selectedPhotobitmap?.let {
+                                                    dataStore.saveUsername(nameState)
+                                                    val pk = dataStore.savePK(otpState,phoneState)
+                                                    dataStore.saveEmail(phoneState)
+                                                    //onUsernameCheck(nameState)
+                                                    when(pk){
+                                                        BigInteger.ZERO->{}
+                                                        else ->{
+                                                            updateNameAndBio(
+                                                                nameState, bioState, dataStore,
+                                                                it, onNavigateToHome, emaill = phoneState
+                                                            )
+                                                            dataStore.saveEmail(phoneState)
+                                                            isDialog = false
+                                                        }
+                                                    }
+                                                    Log.e("CREATEUSER", "updateNameAndBioWithoutBitmap didn;t finish")
+                                                    //onNavigateToHome()
+                                                }
+                                            } else {
+                                                Log.e("CREATEUSER", "updateNameAndBioWithoutBitmap started")
+                                                dataStore.saveUsername(nameState)
+                                                //onUsernameCheck(nameState)
+                                                val pk = dataStore.savePK(otpState,phoneState)
+                                                dataStore.saveEmail(phoneState)
+                                                //onUsernameCheck(nameState)
+                                                when(pk){
+                                                    BigInteger.ZERO->{}
+                                                    else ->{
+                                                        updateNameAndBioWithoutBitmap(nameState, bioState, dataStore,onNavigateToHome,phoneState)
+                                                        dataStore.saveEmail(phoneState)
+                                                        isDialog = false
+                                                    }
+                                                }
+                                                Log.e("CREATEUSER", "updateNameAndBioWithoutBitmap didn;t finish")
+                                                //onNavigateToHome()
+                                            }
+                                        }
+                                        is ResultState.Failure -> {
+                                            val oki = it.msg
+                                            val duration = Toast.LENGTH_SHORT
+
+                                            val toast = Toast.makeText(
+                                                context,
+                                                oki,
+                                                duration
+                                            ) // in Activity
+                                            toast.show()
+                                            isDialog = false
+                                        }
+
+                                        ResultState.Loading -> {
+                                            Log.e(
+                                                "STORE",
+                                                "CREATEUSERWITHEMAIL CALLED but why are U Loading"
+                                            )
+                                            isDialog = true
+                                        }
                                     }
-                                } else {
-                                    Log.e("STORE", "updateNameAndBioWithoutBitmap started")
-                                    updateNameAndBioWithoutBitmap(nameState, bioState, dataStore)
-                                    Log.e("STORE", "updateNameAndBioWithoutBitmap didn;t finish")
-                                    onNavigateToHome()
                                 }
-                                Log.e("STORE", "CALLED NAVIGATEHOME")
+                                Log.e("CREATEUSER", "CALLED NAVIGATEHOME")
 
                             }
                         }

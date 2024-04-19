@@ -3,8 +3,10 @@
 package com.example69.chatapp.ui.theme.Screens
 
 import android.app.Activity
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -59,6 +61,7 @@ import androidx.navigation.NavHostController
 import com.example69.chatapp.R
 import com.example69.chatapp.animations.MinaBoxAdvancedScreen
 import com.example69.chatapp.auth.AuthViewModel
+import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.storePhoneNumber
 import com.example69.chatapp.navigation.HOME_SCREEN
 import com.example69.chatapp.navigation.LOGIN_SCREEN
@@ -69,13 +72,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                 activity: Activity,
                      onNavigateToCreateAccount: ()->Unit = {},
                      onEmailChange:(String,String) ->Unit,
                 viewModel: AuthViewModel = hiltViewModel(),
-                     realmViewModel: RealmViewModel) {
+                     realmViewModel: RealmViewModel,
+                     dataStore: StoreUserEmail,
+                     onUsernameCheck: (String) ->Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -221,6 +227,8 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                                                             "SUCESSS  EMAIL SIGNinnn aahahah"
                                                         )
                                                         //storePhoneNumber(phoneState)
+                                                        dataStore.saveUsername(phoneState)
+                                                        onUsernameCheck(phoneState)
                                                         realmViewModel.addMessagesToRealm(phoneState)
                                                         onEmailChange(phoneState,otpState)
                                                         isDialog = false

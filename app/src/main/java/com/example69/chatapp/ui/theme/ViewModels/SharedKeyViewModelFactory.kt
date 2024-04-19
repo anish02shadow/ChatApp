@@ -2,19 +2,15 @@ package com.example69.chatapp.ui.theme.ViewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.NavController
 import com.example69.chatapp.data.StoreUserEmail
 
-
-class MainViewModelFactory(
+class SharedKeysViewModelFactory(
     private val dataStore: StoreUserEmail,
-    private val navController: NavController,
-    private val sharedKeysViewModel: SharedKeysViewModel
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(SharedKeysViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return MainViewModel(dataStore,navController,sharedKeysViewModel) as T
+            return SharedKeysViewModel(dataStore) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

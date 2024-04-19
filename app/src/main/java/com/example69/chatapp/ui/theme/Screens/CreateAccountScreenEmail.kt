@@ -87,7 +87,6 @@ fun CreateAccountScreenEmail(
                                 .fillMaxSize()
                                 .padding(30.dp)
                         ) {
-                            val scope= rememberCoroutineScope()
                             var isDialog by remember { mutableStateOf(false) }
 
                             if(isDialog) {
@@ -177,49 +176,8 @@ fun CreateAccountScreenEmail(
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         } else {
-                                            scope.launch(Dispatchers.Main) {
-                                                viewModel.createUserWithEmail(
-                                                    phoneState,
-                                                    otpState,
-                                                    activity = activity
-                                                ).collect {
-                                                    Log.e("STORE", "CREATEUSERWITHEMAIL CALLED")
-                                                    when (it) {
-                                                        is ResultState.Success -> {
-                                                            Log.e(
-                                                                "STORE",
-                                                                "SUCESSS USER EMAIL WOHOOOHOH"
-                                                            )
-                                                            storePhoneNumber(phoneState)
-                                                            onEmailChange(phoneState,otpState)
-                                                            isDialog = false
-                                                            onNavigateToUsername()
-                                                        }
-
-                                                        is ResultState.Failure -> {
-                                                            val oki = it.msg
-                                                            //val text = "Error creating account"
-                                                            val duration = Toast.LENGTH_SHORT
-
-                                                            val toast = Toast.makeText(
-                                                                context,
-                                                                oki,
-                                                                duration
-                                                            ) // in Activity
-                                                            toast.show()
-                                                            isDialog = false
-                                                        }
-
-                                                        ResultState.Loading -> {
-                                                            Log.e(
-                                                                "STORE",
-                                                                "CREATEUSERWITHEMAIL CALLED but why are U Loading"
-                                                            )
-                                                            isDialog = true
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            onEmailChange(phoneState,otpState)
+                                          //onNavigateToUsername()
                                         }
                                     },
                                     modifier = Modifier

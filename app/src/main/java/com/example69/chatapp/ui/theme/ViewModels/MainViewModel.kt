@@ -3,42 +3,27 @@ package com.example69.chatapp.ui.theme.ViewModels
 import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.example69.chatapp.BaseApplication.Companion.realm
 import com.example69.chatapp.data.FriendPhoto
 import com.example69.chatapp.data.FriendRequests
 import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
-import com.example69.chatapp.firebase.acceptFriendRequest
 import com.example69.chatapp.firebase.getFriendRequests
 import com.example69.chatapp.firebase.getFriendsEmails
 import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.firebase.getMood
-import com.example69.chatapp.firebase.retrieveMessages
-import com.example69.chatapp.navigation.HOME_SCREEN
-import com.example69.chatapp.realmdb.FriendMessagesRealm
-import com.example69.chatapp.realmdb.RealmViewModel
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class MainViewModel(
     private val dataStore: StoreUserEmail,
     private val navController: NavController,
+    private val sharedKeysViewModel: SharedKeysViewModel
 ) : ViewModel() {
     public val _emailState = mutableStateOf("")
     val emailState: State<String> = _emailState
@@ -77,7 +62,7 @@ class MainViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 Log.e("Refresh", "Collecting getFriendsAndMessages ViewModel")
-                getFriendsEmails(_emailState.value, dataStore).collect { (friends, userMessages) ->
+                getFriendsEmails(_emailState.value, dataStore,sharedKeysViewModel).collect { (friends, userMessages) ->
                     _friendsAndMessages.value = friends to (userMessages.first to userMessages.second)
                 }
             }

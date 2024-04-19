@@ -50,19 +50,28 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example69.chatapp.R
 import com.example69.chatapp.animations.FriendRequestCard
 import com.example69.chatapp.data.FriendRequests
+import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String) -> Unit,viewModel: MainViewModel) {
+fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String) -> Unit,viewModel: MainViewModel,dataStore: StoreUserEmail) {
 
     val friendrequests = remember { mutableStateListOf<FriendRequests>() }
     friendrequests.addAll(friendRequests)
     Log.e("req","fr size is ${friendRequests.size} and fr is: $friendRequests")
 
+
+    val sharedKeysViewModel: SharedKeysViewModel = viewModel(
+        key = "SharedKeysViewModel",
+        factory = SharedKeysViewModelFactory(dataStore)
+    )
 
     Scaffold(
         topBar = {
@@ -92,6 +101,7 @@ fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String
                 onDelete = {
                     friendrequests.remove(it)
                     onAccept(it.email)
+                    sharedKeysViewModel.preloadDecryptedSharedKeys(dataStore)
                     viewModel.getFriendsAndMessages()
                     viewModel.getPhotoUrls()
                 }
