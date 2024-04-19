@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -22,11 +21,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -49,36 +46,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.core.DataStore
-import androidx.navigation.NavHostController
+import androidx.datastore.dataStore
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example69.chatapp.R
-import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addChat
 import com.example69.chatapp.firebase.deleteFriend
-import com.example69.chatapp.realmdb.FriendMessagesRealm
 import com.example69.chatapp.realmdb.MessageRealm
 import com.example69.chatapp.ui.theme.*
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
@@ -88,7 +71,6 @@ import java.util.Locale
 fun ChatScreen(
     email: String,
     messages: List<MessageRealm>,
-    //messages: Flow<List<Message>>,
     friendUsername: String?,
     canChat: Boolean?,
     dataStore: StoreUserEmail,
@@ -99,21 +81,8 @@ fun ChatScreen(
 
     val lazyListState = rememberLazyListState()
 
-
     var (Messages,setCurrentMessages) = remember { mutableStateOf(messages) }
 
-//    var Messages by remember { mutableStateOf(emptyList<Message>()) }
-//
-//    LaunchedEffect(messages) {
-//        val job = launch {
-//            messages.collect { newMessages ->
-//                Messages = newMessages
-//                if (newMessages.isNotEmpty()) {
-//                    lazyListState.scrollToItem(newMessages.size - 1)
-//                }
-//            }
-//        }
-//    }
 
     LaunchedEffect(messages) {
         setCurrentMessages(messages)
@@ -167,13 +136,12 @@ fun ChatScreen(
         var message by remember { mutableStateOf("") }
         val focusManager = LocalFocusManager.current
 
-        // Define the function to handle trailing icon click
         val onTrailingIconClick: () -> Unit = {
-            message = "" // Clear the text
+            message = ""
             focusManager.clearFocus() // Close the keyboard
         }
 
-        email?.let {
+        email.let {
             CustomTextField(
                 text = message, onValueChange = { message = it },
                 modifier = Modifier
@@ -182,7 +150,8 @@ fun ChatScreen(
                 canChat = canChat,
                 friendEmail = it,
                 onTrailingIconClick = onTrailingIconClick,
-                addToMessages = onMessageEntered
+                addToMessages = onMessageEntered,
+                dataStore = dataStore
             )
         }
     }
@@ -192,7 +161,6 @@ fun ChatScreen(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MessagesList(
-    //messages: List<Message>,
     messages: List<MessageRealm>,
     lazyListState: LazyListState = rememberLazyListState(),
     canChat: Boolean?) {
@@ -208,13 +176,6 @@ fun MessagesList(
             bottom = 75.dp
         )
     ) {
-//        items(messages, key = { it.timestamp }) { message ->
-//        ChatRow(
-//            direction = !canChat!!,
-//            message = message.message,
-//            time = formatTimestamp(message.timestamp)
-//        )
-//    }
         groupedMessages.forEach { (date, dateMessages) ->
             item {
                 DateSeparator(date)
@@ -237,14 +198,13 @@ fun DateSeparator(date: LocalDate) {
         LocalDate.now() -> "Today"
         LocalDate.now().minusDays(1) -> "Yesterday"
         else -> "${date.dayOfMonth}${getDayOfMonthSuffix(date.dayOfMonth)} ${date.month.getDisplayName(java.time.format.TextStyle.FULL,Locale.getDefault())} ${date.year}"
-            //date.format(DateTimeFormatter.ofPattern("dd:MM:yyyy"))
     }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center
+        contentAlignment = Center
     ) {
         Text(
             text = text,
@@ -266,13 +226,6 @@ fun getDayOfMonthSuffix(n: Int): String {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
-fun formatTimestamp2(timestamp: Long): String {
-    return Instant.ofEpochMilli(timestamp)
-        .atZone(ZoneId.systemDefault())
-        .toLocalTime()
-        .format(DateTimeFormatter.ofPattern("HH:mm"))
-}
 private fun formatTimestamp(timestamp: Long): String {
     val date = Date(timestamp)
     val format = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -318,7 +271,6 @@ fun ChatRow(
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTextField(
     text: String,
@@ -327,8 +279,8 @@ fun CustomTextField(
     canChat: Boolean?,
     onTrailingIconClick: () -> Unit,
     friendEmail:  String,
-    addToMessages: (String) -> Unit
-
+    addToMessages: (String) -> Unit,
+    dataStore: StoreUserEmail
 ) {
     TextField(
         value = text, onValueChange = { onValueChange(it) },
@@ -354,7 +306,7 @@ fun CustomTextField(
         ),
         leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
         trailingIcon = {
-            CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick, addToMessages = addToMessages)
+            CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick, addToMessages = addToMessages, dataStore = dataStore)
                        },
         modifier = modifier.fillMaxWidth(),
         shape = CircleShape
@@ -386,7 +338,8 @@ fun CommonIconButtonDrawable(
     canChat: Boolean?,
     message: String,
     onTrailingIconClick: () -> Unit,
-    addToMessages: (String) -> Unit
+    addToMessages: (String) -> Unit,
+    dataStore: StoreUserEmail
 ) {
     val scope = rememberCoroutineScope()
     Box(
@@ -398,10 +351,8 @@ fun CommonIconButtonDrawable(
                 if (canChat == true) {
                     scope.launch {
                         addToMessages(message)
-                        addChat(message, friendEmail)
+                        addChat(message, friendEmail, dataStore = dataStore)
                     }
-                } else {
-
                 }
             }, contentAlignment = Center
 
@@ -427,7 +378,6 @@ fun UserNameRow(
 
 ) {
     val color = remember { mutableStateOf(colorViewModel.getColor(email)) }
-//    Log.e("twophotu", "Photo is: $photourl")
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
             .data(photourl)

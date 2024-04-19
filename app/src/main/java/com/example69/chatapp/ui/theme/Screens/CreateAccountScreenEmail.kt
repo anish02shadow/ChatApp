@@ -35,13 +35,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import com.example69.chatapp.R
 import com.example69.chatapp.animations.MinaBoxAdvancedScreen
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.firebase.storePhoneNumber
-import com.example69.chatapp.navigation.LOGIN_SCREEN
-import com.example69.chatapp.navigation.SIGNUP_SCREEN
 import com.example69.chatapp.utils.ResultState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -49,7 +46,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun CreateAccountScreenEmail(
-                activity: Activity, onNavigateToUsername: ()->Unit = {},  onEmailChange:(String) ->Unit,
+                activity: Activity, onNavigateToUsername: ()->Unit = {},  onEmailChange:(String,String) ->Unit,
                 viewModel: AuthViewModel = hiltViewModel()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -194,12 +191,22 @@ fun CreateAccountScreenEmail(
                                                                 "SUCESSS USER EMAIL WOHOOOHOH"
                                                             )
                                                             storePhoneNumber(phoneState)
-                                                            onEmailChange(phoneState)
+                                                            onEmailChange(phoneState,otpState)
                                                             isDialog = false
                                                             onNavigateToUsername()
                                                         }
 
                                                         is ResultState.Failure -> {
+                                                            val oki = it.msg
+                                                            //val text = "Error creating account"
+                                                            val duration = Toast.LENGTH_SHORT
+
+                                                            val toast = Toast.makeText(
+                                                                context,
+                                                                oki,
+                                                                duration
+                                                            ) // in Activity
+                                                            toast.show()
                                                             isDialog = false
                                                         }
 

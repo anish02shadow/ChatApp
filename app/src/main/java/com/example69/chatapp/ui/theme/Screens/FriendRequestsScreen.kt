@@ -12,7 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -38,13 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,30 +50,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example69.chatapp.R
 import com.example69.chatapp.animations.FriendRequestCard
 import com.example69.chatapp.data.FriendRequests
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
-import java.nio.file.WatchEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String) -> Unit,viewModel: MainViewModel) {
 
-    //var friendrequests by remember { mutableStateOf(emptyList<FriendRequests>()) }
     val friendrequests = remember { mutableStateListOf<FriendRequests>() }
     friendrequests.addAll(friendRequests)
     Log.e("req","fr size is ${friendRequests.size} and fr is: $friendRequests")
 
-//    LaunchedEffect(friendRequests) {
-//        friendRequests.collect { newFriendsEmails ->
-//            friendrequests.clear()
-//            friendrequests.addAll(newFriendsEmails)
-//        }
-//    }
 
     Scaffold(
         topBar = {
@@ -144,7 +127,6 @@ fun EmptyFriendRequestsView(){
 
 @OptIn(
     ExperimentalFoundationApi::class,
-    ExperimentalAnimationApi::class
 )
 @Composable
 fun ReplyEmailListItem(

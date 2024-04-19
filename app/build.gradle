@@ -127,4 +127,6 @@ dependencies {
 
     //Realm DB
     implementation("io.realm.kotlin:library-base:1.11.0")
+
+    implementation("com.github.Lyzev:RSA4K:1.2")
 }

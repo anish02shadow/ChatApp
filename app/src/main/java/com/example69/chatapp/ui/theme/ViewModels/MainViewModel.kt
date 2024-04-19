@@ -68,24 +68,12 @@ class MainViewModel(
 
     private val _messages = mutableStateOf<List<Message>>(emptyList())
     val messages: State<List<Message>> = _messages
-//private val _messages = MutableStateFlow<List<Message>>(emptyList())
-//    val messages: StateFlow<List<Message>> = _messages.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
 
     private val _friendRequests = mutableStateOf<List<FriendRequests>>(emptyList())
     val friendRequests: State<List<FriendRequests>> = _friendRequests
 
-    init {
-        viewModelScope.launch {
-//            _emailState.value = dataStore.getEmail.first() ?: ""
-//            _userIsSignedIn.value = FirebaseAuth.getInstance().currentUser != null
-//            Log.e("Refresh", "In ViewModel ${_userIsSignedIn.value}")
-//            getFriendsAndMessages()
-//            getPhotoUrls()
-        }
-    }
-
-
-    public fun getFriendsAndMessages() {
+     fun getFriendsAndMessages() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 Log.e("Refresh", "Collecting getFriendsAndMessages ViewModel")
@@ -96,7 +84,7 @@ class MainViewModel(
         }
     }
 
-    public fun getmood(email: String) {
+     fun getmood(email: String) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 getMood(email).collect{ moodnew ->
@@ -106,7 +94,7 @@ class MainViewModel(
         }
     }
 
-    public fun getPhotoUrls() {
+     fun getPhotoUrls() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 Log.e("Refresh", "Collecting getPhotoUrls ViewModel")
@@ -117,53 +105,10 @@ class MainViewModel(
         }
     }
 
-    fun onLogout() {
-        _userIsSignedIn.value = false
-    }
-
-    fun onFriendClick(email: String, username: String,canChat: Boolean) {
-        Log.e("Refresh","onFriendClick updating email and username and cnacHAT")
-        _friendEmail.value = email
-        _friendUsername.value = username
-        _canChat.value = canChat
-        Log.e("Refresh","onFriendClick updating email and username and cnacHAT to ${_friendEmail.value}  ${_friendUsername.value}  ${_canChat.value}")
-    }
-
-//    fun onFriendsChange(newFriendsList: List<FriendsData>) {
-//        _friendsAndMessages.value = newFriendsList to (_friendsAndMessages.value?.second ?: ("" to 0))
-//    }
-//
-//    fun onUserMessageStateChange(newUserMessagesState: Pair<String?, String>) {
-//        _friendsAndMessages.value = (_friendsAndMessages.value?.first ?: emptyList<FriendsData>() ) to newUserMessagesState
-//    }
-
     fun onEmailChange(newEmail: String) {
         viewModelScope.launch {
             dataStore.saveEmail(newEmail)
             _emailState.value = newEmail
-        }
-    }
-
-    fun onChatScreenArguments(email: String) {
-        viewModelScope.launch {
-            Log.e("Refresh","Retrevining messages")
-            _messages.value = retrieveMessages(email).first()
-            Log.e("Refresh","Retrevining messages done ig?")
-        }
-    }
-
-    fun onCreateAccount(email: String) {
-        viewModelScope.launch {
-            dataStore.saveEmail(email)
-            _emailState.value = email
-        }
-    }
-
-    fun onSignUp(username: String) {
-        viewModelScope.launch {
-            // Perform sign-up logic
-            _userIsSignedIn.value = true
-            navigateToHome()
         }
     }
 
@@ -173,30 +118,4 @@ class MainViewModel(
         }
     }
 
-    fun onacceptFriendRequest(email: String) {
-        viewModelScope.launch {
-            acceptFriendRequest(email,dataStore)
-            //
-            // getFriendsAndMessages()
-            getPhotoUrls()
-        }
-    }
-
-    private fun navigateToHome() {
-        navController.navigate(HOME_SCREEN)
-    }
-    fun navigateToChat() {
-        navController.navigate("CHAT_SCREEN/${_canChat.value}")
-    }
-
-
-    fun initApp() {
-        viewModelScope.launch {
-            _emailState.value = dataStore.getEmail.first() ?: ""
-            _userIsSignedIn.value = FirebaseAuth.getInstance().currentUser != null
-            Log.e("Refresh", "In ViewModel ${_userIsSignedIn.value}")
-            //getFriendsAndMessages()
-            getPhotoUrls()
-        }
-    }
 }

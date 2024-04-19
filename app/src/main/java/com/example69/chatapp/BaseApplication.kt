@@ -13,7 +13,6 @@ class BaseApplication : Application() {
     companion object{
         lateinit var realm: Realm
     }
-
     override fun onCreate() {
         super.onCreate()
         realm = Realm.open(

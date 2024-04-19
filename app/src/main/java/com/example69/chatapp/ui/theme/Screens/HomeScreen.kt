@@ -3,6 +3,7 @@
 package com.example69.chatapp.ui.theme.Screens
 
 import android.annotation.SuppressLint
+import android.os.Build
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
@@ -109,7 +111,6 @@ import java.util.TimeZone
 @Composable
 fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit,dataStore: StoreUserEmail) {
     var isSearchVisible by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -120,7 +121,6 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFrie
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            //modifier = Modifier.fillMaxWidth()
         ){
             Icon(
                 imageVector = Icons.Default.Search,
@@ -231,9 +231,9 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFrie
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit, email: String, dataStore: StoreUserEmail){
-    //Log.e("STORE","$email is EMAIL IN PopUpBox which csalls CustomTrxtField2")
     if(showPopUp){
         Box(
             modifier = Modifier
@@ -262,6 +262,7 @@ fun PopupBox(showPopUp: Boolean, updatePopUp: (Boolean) -> Unit, email: String, 
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomStyleTextField2(
@@ -272,7 +273,7 @@ fun CustomStyleTextField2(
     placeHolder: String,
     leadingIconId: Int,
     keyboardType: KeyboardType,
-    onTextChange: (String) -> Unit // Callback function for text changes
+    onTextChange: (String) -> Unit
 ) {
     var scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -284,8 +285,7 @@ fun CustomStyleTextField2(
             .border(BorderStroke(0.5.dp, LightGray)),
         value = textState,
         onValueChange = { valueChanged ->
-            //textState = valueChanged // Update the local state
-            onTextChange(valueChanged) // Call the callback function to update external state
+            onTextChange(valueChanged)
         },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
         placeholder = { Text(text = placeHolder) },
@@ -298,14 +298,13 @@ fun CustomStyleTextField2(
                         modifier = Modifier
                             .padding(start = 10.dp, end = 10.dp)
                             .size(18.dp),
-                        painter = painterResource(id = leadingIconId),  // material icon
+                        painter = painterResource(id = leadingIconId),
                         colorFilter = ColorFilter.tint(Color(0xFF1BA57B)),
                         contentDescription = "custom_text_field"
                     )
                     Canvas(
                         modifier = Modifier.height(24.dp)
                     ) {
-                        // Allows you to draw a line between two points (p1 & p2) on the canvas.
                         drawLine(
                             color = Color.LightGray,
                             start = Offset(0f, 0f),
@@ -319,16 +318,13 @@ fun CustomStyleTextField2(
         colors = TextFieldDefaults.outlinedTextFieldColors(
             focusedBorderColor = Color(0xFF1BA57B),
             unfocusedBorderColor = Color.Transparent,
-            focusedLabelColor = Color.White,
-            //trailingIconColor = Color.White,
-//            disabledTextColor = NaviBlue
+            focusedLabelColor = White,
         ),
         shape = RoundedCornerShape(10.dp),
         textStyle = TextStyle(color = Color.Black, fontSize = 16.sp),
         keyboardActions = KeyboardActions(
             onNext = {
                 scope.launch {
-                    //Log.e("STORE","$email is EMAIL IN CustomTextFielf which csalls addFriend, $dataStore")
                     val text = addFriend(email, textState,dataStore = dataStore)
                     val duration = Toast.LENGTH_LONG
 
@@ -342,48 +338,35 @@ fun CustomStyleTextField2(
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onLogOutPress:() ->Unit = {},
-    //friends: List<FriendMessagesRealm>?,
     email2: String,
     dataStore: StoreUserEmail,
     onClick: (String, String, String) -> Unit,
     onNavigateToChat: (Boolean?) -> Unit,
     onFriendRequests: () ->Unit,
     photoUrls: List<FriendPhoto>,
-    //userMessagesState: Pair<String?, Long>,
     userProfileImage: FriendPhoto,
-    //onFriendsChange: (List<FriendMessagesRealm>) ->Unit,
-    //onUserMessageStateChange: (Pair<String?, Long>) ->Unit,
     viewModel: MainViewModel,
-    //moodOn: String?,
     colorViewModel: ColorViewModel
 
 ) {
-
-//        val mood2 = produceState<String?>(initialValue = null) {
-//        getMood(email2).collect { value ->
-//            this.value = value
-//        }
-//    }
 
     val realmViewModel: RealmViewModel = viewModel(
         key = "RealmViewModel",
         factory = RealmViewModelFactory(viewModel, dataStore)
     )
 
-    //val realmViewModel = viewModel<RealmViewModel>()
-
 
     val emailState = remember { mutableStateOf("") }
-    //val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
 
     LaunchedEffect(emailState) {
         val email = dataStore.getEmail.first()
-        emailState.value = email ?: ""
-        //Log.e("STORE", "${emailState.value} is EmailState.Value launched effectoo")
+        emailState.value = email
+        //Log.e("ENCRYPTIONN","i de homescreen launcehd effect over ishnome screen")
     }
 
     var showPopUp by rememberSaveable {
@@ -391,52 +374,29 @@ fun HomeScreen(
     }
 
     val scope = rememberCoroutineScope()
-    //var friendsEmails by remember { mutableStateOf(emptyList<String>()) }
-
-    //var userdata by remember { mutableStateOf(friends) }
 
 
     var friendsPhotos by remember { mutableStateOf(photoUrls) }
     var userPhotoUrl by remember { mutableStateOf(userProfileImage) }
 
-    //var latestMessage by remember { mutableStateOf(userMessagesState.first) }
-    //var latestMessageTime by remember { mutableStateOf(userMessagesState.second) }
-
-//    var mood by remember {
-//        mutableStateOf("No Mood")
-//    }
-
-
-//    LaunchedEffect(friends) {
-//        friends.collect { (friendsList, messageData) ->
-//            userdata = friendsList
-//            latestMessage = messageData.first ?: ""
-//            latestMessageTime = messageData.second
-//        }
-//    }
-//
-//    LaunchedEffect(photoUrls) {
-//        photoUrls.collect { (friendsphotos, userPhotourl) ->
-//            friendsPhotos = friendsphotos
-//            userPhotoUrl = userPhotourl
-//        }
-//    }
 
     val USERDATA by realmViewModel.friendMessagesRealm.collectAsState()
+    //Log.e("ENCRYPTIONN","USERDATA is $USERDATA")
     val UserLatestMessage by realmViewModel.userLatestMessage.collectAsState()
-    //val UserLatestMessageTime by realmViewModel.userLatestMessageTime.collectAsState()
-    val UserLatestMessageTime = 0
+    //Log.e("ENCRYPTIONN","UserLatestMessage is $UserLatestMessage")
+
+    val UserLatestMessageTime by realmViewModel.userLatestMessageTime.collectAsState()
+    //Log.e("ENCRYPTIONN","UserLatestMessageTime is $UserLatestMessageTime")
     val UserMood by realmViewModel.userMood.collectAsState()
+    //Log.e("ENCRYPTIONN","UserMood is $UserMood")
 
     val sheetState = rememberModalBottomSheetState()
 
     val pullRefreshState = rememberPullToRefreshState()
     if (pullRefreshState.isRefreshing) {
         val friendemails = getFriendsEmails(emailState.value, dataStore)
-        Log.e("ONCLICK", "Are getMood u called here?")
         val getmood = getMood(email2)
         LaunchedEffect(true) {
-            Log.e("Refresh", "Collecting FRIENDEMAILS HomeScreen")
             friendemails.collect { (friendsList, messageData) ->
                 val friendMessagesRealm = friendsList.map { friendsData ->
                     FriendMessagesRealm().apply {
@@ -452,22 +412,12 @@ fun HomeScreen(
                     realmViewModel.updateMood(moodnew.toString())
                 }
                     realmViewModel.updateData(friendMessagesRealm,
-                        messageData.first.toString(), latestmessagetime = messageData.second.toLong(),UserMood)
-//                userdata = friendMessagesRealm
-//                latestMessage = messageData.first ?: ""
-//                latestMessageTime = messageData.second
+                        messageData.first.toString(), latestmessagetime = messageData.second)
             }
-            Log.e("REALM2","Are u called here addMessagesToRealm???")
+            //Log.e("ENCRYPTIONN","WHy arent u being called")
             realmViewModel.addMessagesToRealm(email2)
-//            realmViewModel.updateFriendsList(email2)
-//            viewModel.getmood(email2)
-//            onFriendsChange(userdata)
-//            onUserMessageStateChange(latestMessage to latestMessageTime)
-//            //viewModel.getFriendsAndMessages()
-
             pullRefreshState.endRefresh()
         }
-        //Log.e("Refresh", "Refesh done and updateddd OUTSIDE: $latestMessage")
     }
     Box(
         modifier = Modifier
@@ -497,7 +447,6 @@ fun HomeScreen(
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    //verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "Messages",
@@ -508,10 +457,9 @@ fun HomeScreen(
                     )
                     Box(
                         modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
+                            .align(CenterHorizontally)
                             .padding(16.dp)
                     ) {
-                        //Log.e("STORE","${emailState.value} is EMAIL IN HomeScreen which csalls popupbox")
                         PopupBox(
                             showPopUp = showPopUp,
                             updatePopUp = { newVal -> showPopUp = newVal },
@@ -534,21 +482,6 @@ fun HomeScreen(
 
                     )
 
-//                    val userDataWithPhotos: List<Pair<FriendMessagesRealm, FriendPhoto>> =
-//                        userdata.zip(friendsPhotos)
-
-//                    val sortedUserData = userdata.sortedBy { it.Username }
-//                    var userDataWithPhotos: List<Pair<FriendMessagesRealm, FriendPhoto>> = sortedUserData.mapNotNull { friendData ->
-//                        val matchingPhoto = friendsPhotos.firstOrNull { it.email == friendData.email }
-//                        matchingPhoto?.let { friendData to it }
-//                    }
-
-//                    val userDataFlow = remember {MutableStateFlow(userdata.sortedBy { it.Username })}
-//
-//                    LaunchedEffect(userdata) {
-//                        userDataFlow.value = userdata.sortedBy { it.Username }
-//                    }
-
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
                     ) {
@@ -560,13 +493,14 @@ fun HomeScreen(
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = true,
                                 email = email2,
-                                latestMessageTime = formatTime(UserLatestMessageTime.toLong()),
+                                latestMessageTime = formatTime(UserLatestMessageTime),
                                 photourl = userPhotoUrl.photourl,
                                 colorViewModel = colorViewModel
                             )
                         }
                         items(USERDATA) { friendData ->
                             val matchingPhoto = friendsPhotos.firstOrNull { it.email == friendData.email }
+                            val Ltime = formatTime(friendData.lastMessageTime)
                             UserEachRow(
                                 username = friendData.Username,
                                 latestMessage = friendData.lastMessage,
@@ -574,7 +508,7 @@ fun HomeScreen(
                                 onNavigateToChat = onNavigateToChat,
                                 canChat = false,
                                 email = friendData.email,
-                                latestMessageTime = formatTime(friendData.lastMessageTime),
+                                latestMessageTime = Ltime,
                                 photourl = matchingPhoto?.photourl.toString(),
                                 colorViewModel = colorViewModel
                             )
@@ -606,16 +540,6 @@ fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit,
         modifier = Modifier
             .fillMaxWidth()
             .background(White)
-            /*            .border(
-                width = 1.dp,
-                color = Gray,
-                shape = RoundedCornerShape(
-                    topStart = 0.dp,
-                    topEnd = 0.dp,
-                    bottomStart = 30.dp,
-                    bottomEnd = 30.dp
-                )
-            )*/
             .padding(start = 20.dp, top = 25.dp)
     ) {
         Searchbar2(updatePopUp, onLogOutPress = onLogOutPress, onFriendRequests = onFriendRequests, dataStore = dataStore  )
@@ -625,43 +549,18 @@ fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit,
                 .fillMaxWidth()
                 .padding(top = 5.dp)
         ) {
-            Header()
+            Text(text = "Mood",
+                color = Black,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.W300)
             ViewStoryLayout(friends = friends, sheetState = sheetState, email = email, mood = mood)
         }
     }
 }
 
 @Composable
-fun Searchbar(){
-    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
-        .padding(2.dp, end = 10.dp)
-        .fillMaxWidth()) {
-
-        Text(text = "MoodChat",
-            color = Black,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold)
-
-        Icon(Icons.Default.Search,
-            tint = Black,
-            modifier = Modifier
-                .size(28.dp)
-                .padding(end = 0.dp),
-            contentDescription = "Search Bar")
-    }
-}
-
-@Composable
 fun ViewStoryLayout(friends: List<FriendMessagesRealm>, sheetState: SheetState,
                     email: String, mood: String?) {
-
-//    var userdata by remember { mutableStateOf(emptyList<FriendsData>()) }
-//
-//    LaunchedEffect(friends) {
-//            friends.collect { newFriendsEmails ->
-//                userdata = newFriendsEmails
-//        }
-//    }
 
     LazyRow(modifier = Modifier.padding(vertical = 15.dp)) {
         item {
@@ -697,7 +596,6 @@ fun UserEachRow(
                 .data(photourl)
                 .build()
         )
-    val scope  = rememberCoroutineScope()
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -841,11 +739,6 @@ fun AddStoryLayout(
 ) {
 
       val scope = rememberCoroutineScope()
-//    val mood = produceState<String?>(initialValue = null) {
-//        getMood(email).collect { value ->
-//            this.value = value
-//        }
-//    }
     Column(
         modifier = modifier
     ) {
@@ -854,7 +747,7 @@ fun AddStoryLayout(
                 .border(2.dp, DarkGray, shape = CircleShape)
                 .background(Yellow, shape = CircleShape)
                 .size(70.dp),
-            contentAlignment = Alignment.Center
+            contentAlignment = Center
         ) {
             val drawableId = getDrawableIdByText(mood)
             if(mood.equals("No Photo")) {
@@ -862,7 +755,7 @@ fun AddStoryLayout(
                     modifier = Modifier
                         .size(20.dp)
                         .background(Black, CircleShape),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Center
                 ) {
                     IconButton(onClick = {
                         scope.launch {
@@ -907,39 +800,6 @@ fun getDrawableIdByText(searchText: String?): Int {
     return R.drawable.ic_launcher_background
 }
 
-
-@Composable
-fun Header() {
-    val annotatedString = buildAnnotatedString {
-        withStyle(
-            style = SpanStyle(
-                color = White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.W300
-            )
-        ) {
-            append("Welcome Back!")
-        }
-        withStyle(
-            style = SpanStyle(
-                color = White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-            )
-        ) {
-            append(" Anish")
-        }
-    }
-
-    //Text(text = annotatedString)
-    Text(text = "Mood",
-        color = Black,
-        fontSize = 20.sp,
-        fontWeight = FontWeight.W300)
-
-}
-
-// Function to sign out the user
 fun signOut() {
     val auth = FirebaseAuth.getInstance()
     auth.signOut()

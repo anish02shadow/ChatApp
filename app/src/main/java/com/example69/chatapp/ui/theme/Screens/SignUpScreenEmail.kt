@@ -2,7 +2,10 @@ package com.example69.chatapp.ui.theme.Screens
 
 import android.app.Activity
 import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -14,7 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.*
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,31 +35,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
 import com.example69.chatapp.R
-import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.updateNameAndBio
 import com.example69.chatapp.firebase.updateNameAndBioWithoutBitmap
-import com.example69.chatapp.navigation.HOME_SCREEN
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 
 @Composable
@@ -77,15 +72,17 @@ fun SignUpScreenEmail(activity: Activity,
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(modifier = Modifier
-            .height(80.dp)
-            .fillMaxWidth()
-            .background(
-                Color(
-                    0xFF1BA57B
-                )
-            ),
-            contentAlignment = Alignment.Center ){
+        Box(
+            modifier = Modifier
+                .height(80.dp)
+                .fillMaxWidth()
+                .background(
+                    Color(
+                        0xFF1BA57B
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
                 text = "Sign Up",
                 color = Color.White,
@@ -103,17 +100,17 @@ fun SignUpScreenEmail(activity: Activity,
             colors = CardDefaults.cardColors(
                 containerColor = Color(0xFFF8F8F8),
             ),
-        ){
-                PhotoPickerCard(
-                    modifier = Modifier.padding(16.dp, top = 28.dp).align(Alignment.CenterHorizontally),
-                    photoUri = selectedPhotoUri,
-                    onPhotoSelected = { uri ->
-                        selectedPhotoUri = uri
-                    },
-                    onPhotoSelectedBitmap = {bitmap ->
-                        selectedPhotobitmap = bitmap
-                    }
-                )
+        ) {
+            PhotoPickerCard(
+                modifier = Modifier.padding(16.dp, top = 28.dp).align(Alignment.CenterHorizontally),
+                photoUri = selectedPhotoUri,
+                onPhotoSelected = { uri ->
+                    selectedPhotoUri = uri
+                },
+                onPhotoSelectedBitmap = { bitmap ->
+                    selectedPhotobitmap = bitmap
+                }
+            )
 
             Column(
                 modifier = Modifier
@@ -149,7 +146,7 @@ fun SignUpScreenEmail(activity: Activity,
                 )
                 var bioState by remember { mutableStateOf("") }
                 CustomStyleTextFieldSignUp(
-                    height= 150,
+                    height = 150,
                     textState = bioState,
                     "Enter your Bio",
                     R.drawable.baseline_border_color_24,
@@ -169,32 +166,37 @@ fun SignUpScreenEmail(activity: Activity,
                     onClick = {
                         hasUserInteracted = true
                         if (nameState.isBlank()) {
-                            Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT).show()
-                        }
-                        else if (bioState.isBlank()) {
+                            Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT)
+                                .show()
+                        } else if (bioState.isBlank()) {
                             Toast.makeText(context, "Please enter a bio", Toast.LENGTH_SHORT).show()
-                        }
-                        else{
+                        } else {
                             scope.launch {
-                                if(selectedPhotobitmap!=null){
+                                if (selectedPhotobitmap != null) {
+                                    Log.e("STORE", "updateNameAndBioWithoutBitmap started")
                                     selectedPhotobitmap?.let {
-                                        updateNameAndBio(nameState, bioState, dataStore,
+                                        updateNameAndBio(
+                                            nameState, bioState, dataStore,
                                             it
                                         )
+                                        Log.e("STORE", "updateNameAndBioWithoutBitmap didn;t finish")
+                                        onNavigateToHome()
+                                    }
+                                } else {
+                                    Log.e("STORE", "updateNameAndBioWithoutBitmap started")
+                                    updateNameAndBioWithoutBitmap(nameState, bioState, dataStore)
+                                    Log.e("STORE", "updateNameAndBioWithoutBitmap didn;t finish")
+                                    onNavigateToHome()
                                 }
-                                }
-                                else{
-                                    updateNameAndBioWithoutBitmap(nameState,bioState,dataStore)
-                                }
-                                Log.e("STORE","CALLED NAVIGATEHOME")
-                                onNavigateToHome()}
+                                Log.e("STORE", "CALLED NAVIGATEHOME")
+
+                            }
                         }
-                        },
+                    },
                     modifier = Modifier
                         .padding(top = 30.dp, bottom = 34.dp)
                         .align(Alignment.CenterHorizontally)
-                        .fillMaxWidth()
-                    ,
+                        .fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(
                             0xFF1BA57B
@@ -213,6 +215,93 @@ fun SignUpScreenEmail(activity: Activity,
             }
         }
     }
+}
+
+@Composable
+fun PhotoPickerCard(
+    modifier: Modifier = Modifier,
+    photoUri: Uri? = null,
+    onPhotoSelected: (Uri) -> Unit,
+    onPhotoSelectedBitmap: (Bitmap) -> Unit
+) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri ->
+            uri?.let {
+                val bitmap = if (Build.VERSION.SDK_INT < 28) {
+                    MediaStore.Images
+                        .Media.getBitmap(context.contentResolver,uri)
+                } else {
+                    val source = ImageDecoder
+                        .createSource(context.contentResolver,uri)
+                    ImageDecoder.decodeBitmap(source)
+                }
+                onPhotoSelected(it)
+                onPhotoSelectedBitmap(bitmap)
+            }
+        }
+    )
+
+    Box(
+        modifier = modifier
+            .clickable {
+                launcher.launch("image/*")
+            }
+            .size(100.dp)
+            .clip(CircleShape)
+            .background(Color.Gray.copy(alpha = 0.2f)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (photoUri != null) {
+            Image(
+                painter = rememberImagePainter(photoUri),
+                contentDescription = "Selected Photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_add_a_photo_24),
+                contentDescription = "Add Photo",
+                tint = Color.Gray
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomStyleTextFieldSignUp(
+    height: Int,
+    textState: String,
+    placeHolder: String,
+    leadingIconId: Int,
+    keyboardType: KeyboardType,
+    visualTransformation: VisualTransformation,
+    onTextChange: (String) -> Unit
+) {
+
+    OutlinedTextField(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height.dp)
+            .background(Color.White),
+        value = textState,
+        onValueChange = { valueChanged ->
+            onTextChange(valueChanged)
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        placeholder = { Text(text = placeHolder) },
+        colors = TextFieldDefaults.outlinedTextFieldColors(
+            focusedBorderColor = Color(0xFF1BA57B),
+            unfocusedBorderColor = Color.Transparent,
+            focusedLabelColor = Color.White,
+        ),
+        shape = RoundedCornerShape(10.dp),
+        textStyle = TextStyle(color = Color.Black, fontSize = 16.sp),
+        visualTransformation = visualTransformation
+    )
 }
 
 
