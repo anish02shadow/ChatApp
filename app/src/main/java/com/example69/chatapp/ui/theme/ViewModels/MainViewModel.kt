@@ -12,6 +12,7 @@ import com.example69.chatapp.data.FriendsData
 import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.getFriendRequests
+import com.example69.chatapp.firebase.getFriends
 import com.example69.chatapp.firebase.getFriendsEmails
 import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.firebase.getMood
@@ -57,10 +58,12 @@ class MainViewModel(
     private val _friendRequests = mutableStateOf<List<FriendRequests>>(emptyList())
     val friendRequests: State<List<FriendRequests>> = _friendRequests
 
+    private val _friends = mutableStateOf<List<FriendRequests>>(emptyList())
+    val friends: State<List<FriendRequests>> = _friends
+
      fun getFriendsAndMessages() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                Log.e("Refresh", "Collecting getFriendsAndMessages ViewModel")
                 getFriendsEmails(_emailState.value, dataStore,sharedKeysViewModel).collect { (friends, userMessages) ->
                     _friendsAndMessages.value = friends to (userMessages.first to userMessages.second)
                 }
@@ -81,7 +84,6 @@ class MainViewModel(
      fun getPhotoUrls() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                Log.e("Refresh", "Collecting getPhotoUrls ViewModel")
                 getFriendsPhotos(dataStore).collect { (photos, userProfileImage) ->
                     _initialPhotoUrls.value = photos to userProfileImage
                 }
@@ -99,6 +101,12 @@ class MainViewModel(
     fun getFriendRequests() {
         viewModelScope.launch {
             _friendRequests.value = getFriendRequests(dataStore).first()
+        }
+    }
+
+    fun getFriends() {
+        viewModelScope.launch {
+            _friends.value = getFriends(dataStore).first()
         }
     }
 

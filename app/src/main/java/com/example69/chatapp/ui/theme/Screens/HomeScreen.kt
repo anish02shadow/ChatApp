@@ -99,6 +99,7 @@ import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
 import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
@@ -106,7 +107,7 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit,dataStore: StoreUserEmail) {
+fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit,dataStore: StoreUserEmail,onDeleteFriends: () ->Unit) {
     var isSearchVisible by remember { mutableStateOf(false) }
 
     Row(
@@ -121,7 +122,7 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFrie
         ){
             Icon(
                 imageVector = Icons.Default.Search,
-                contentDescription = "Search Bar",
+                contentDescription = "Pull To Refresh!",
                 tint = Color.Black,
                 modifier = Modifier
                     .size(34.dp)
@@ -224,6 +225,7 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFrie
                 }
                 )
                 DropdownMenuItem(text = { Text("Check Requests") }, onClick = { onFriendRequests() })
+                DropdownMenuItem(text = { Text("Delete Friends") }, onClick = { onDeleteFriends() })
             }
         }
         
@@ -351,8 +353,8 @@ fun HomeScreen(
     userProfileImage: FriendPhoto,
     viewModel: MainViewModel,
     colorViewModel: ColorViewModel,
-    sharedKeysViewModel: SharedKeysViewModel
-
+    sharedKeysViewModel: SharedKeysViewModel,
+    onDeleteFriends: () ->Unit
 ) {
 
     val realmViewModel: RealmViewModel = viewModel(
@@ -396,6 +398,7 @@ fun HomeScreen(
         val friendemails = getFriendsEmails(emailState.value, dataStore, sharedKeysViewModel)
 
         val getmood = getMood(email2)
+
 
         LaunchedEffect(true) {
             if(friendemails!=null){
@@ -444,7 +447,8 @@ fun HomeScreen(
                 sheetState = sheetState,
                 email = email2,
                 mood = UserMood,
-                dataStore = dataStore
+                dataStore = dataStore,
+                onDeleteFriends = onDeleteFriends
             )
             Box(
                 modifier = Modifier
@@ -485,14 +489,13 @@ fun HomeScreen(
                         onMoodChange = {newVal ->
                             realmViewModel.updateMood(newVal)
                         }
-
                     )
 
                     LazyColumn(
                         modifier = Modifier.padding(bottom = 15.dp)
                     ) {
                         item {
-                            UserEachRow(
+                            UserEachRowAnimated(
                                 username = email2,
                                 latestMessage = UserLatestMessage,
                                 onClick = onClick,
@@ -523,7 +526,6 @@ fun HomeScreen(
                 }
             }
         }
-
         PullToRefreshContainer(
             state = pullRefreshState,
             modifier = Modifier.align(Alignment.TopCenter)
@@ -541,14 +543,15 @@ fun formatTime(milliseconds: Long): String {
 fun HeaderOrViewStory(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFriendRequests: () ->Unit, friends:List<FriendMessagesRealm>,
                       sheetState: SheetState,
                       email: String, mood: String?,
-                      dataStore: StoreUserEmail) {
+                      dataStore: StoreUserEmail,
+                      onDeleteFriends: () ->Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(White)
             .padding(start = 20.dp, top = 25.dp)
     ) {
-        Searchbar2(updatePopUp, onLogOutPress = onLogOutPress, onFriendRequests = onFriendRequests, dataStore = dataStore  )
+        Searchbar2(updatePopUp, onLogOutPress = onLogOutPress, onFriendRequests = onFriendRequests, dataStore = dataStore, onDeleteFriends = onDeleteFriends )
 
         Column(
             modifier = Modifier
@@ -667,6 +670,155 @@ fun UserEachRow(
                                 ),maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
                             )
                         }
+
+                }
+                Text(
+                    text = latestMessageTime, style = TextStyle(
+                        color = Gray, fontSize = 12.sp
+                    )
+                )
+            }
+            Spacer(modifier = Modifier.height(15.dp))
+            Divider(modifier = Modifier.fillMaxWidth(), thickness = 0.dp)
+        }
+    }
+
+}
+
+@Composable
+fun UserEachRowAnimated(
+    username: String,
+    email: String,
+    latestMessage: String,
+    onClick: (String,String, String) -> Unit,
+    onNavigateToChat: (Boolean) -> Unit,
+    canChat: Boolean,
+    latestMessageTime: String,
+    photourl: String,
+    colorViewModel: ColorViewModel
+) {
+    val color = remember { mutableStateOf(colorViewModel.getColor(email)) }
+    Log.e("photo", "Photo is: $photourl")
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(LocalContext.current)
+            .data(photourl)
+            .build()
+    )
+    val refreshTextVisible = remember { mutableStateOf(false) }
+    val refreshTextTimer = remember { mutableStateOf(0L) }
+
+    // Start the "Pull Down to Refresh!" animation after a short delay
+    LaunchedEffect(Unit) {
+        delay(500) // Adjust this delay as needed
+        refreshTextVisible.value = true
+        refreshTextTimer.value = System.currentTimeMillis()
+    }
+
+    // Hide the "Pull Down to Refresh!" text after 2 seconds
+    LaunchedEffect(refreshTextTimer.value) {
+        if (refreshTextTimer.value != 0L) {
+            delay(2000) // Adjust this duration as needed
+            refreshTextVisible.value = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(White)
+            .noRippleEffect { signOut() }
+            .clickable(onClick = {
+                onClick(email, username, photourl)
+                onNavigateToChat(canChat)
+            })
+            .padding(horizontal = 20.dp, vertical = 5.dp),
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row {
+                    if(photourl.equals("No Photo")){
+                        Card(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .size(60.dp)
+                                .shadow(2.dp, shape = CircleShape),
+                            colors = CardColors(containerColor = color.value, contentColor = Color.Black, disabledContainerColor = Color.Transparent, disabledContentColor = Color.Transparent)
+                        ) {
+                            Text(
+                                text = username[0].toString(),
+                                style = MaterialTheme.typography.headlineMedium,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(12.dp)
+                                    .size(24.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    else {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .shadow(2.dp, shape = CircleShape)
+                        ) {
+                            Image(
+                                painter = painter,
+                                contentDescription = "Photo of user",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Column {
+                            AnimatedVisibility(
+                                visible = refreshTextVisible.value,
+                                enter = fadeIn() + slideInHorizontally { it / 2 },
+                                exit = fadeOut() + slideOutHorizontally { it / 2 }
+                            ) {
+                                Text(
+                                    text = "Pull Down to Refresh!",
+                                    style = TextStyle(
+                                        color = Color.Black,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth(0.6f)
+                                )
+                            }
+
+                            AnimatedVisibility(
+                                visible = !refreshTextVisible.value,
+                                enter = fadeIn() + slideInHorizontally { it / 2 },
+                                exit = fadeOut() + slideOutHorizontally { it / 2 }
+                            ) {
+                                Text(
+                                    text = username,
+                                    style = TextStyle(
+                                        color = Color.Black,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth(0.6f)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = latestMessage, style = TextStyle(
+                                color = Gray, fontSize = 14.sp
+                            ),maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(0.6f)
+                        )
+                    }
 
                 }
                 Text(

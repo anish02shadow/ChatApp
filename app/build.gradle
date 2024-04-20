@@ -134,4 +134,6 @@ dependencies {
     // For AppWidgets support
     implementation "androidx.glance:glance-appwidget:1.0.0"
     implementation "androidx.glance:glance-material3:1.0.0"
+
+    implementation 'com.google.accompanist:accompanist-pager:0.24.13-rc'
 }

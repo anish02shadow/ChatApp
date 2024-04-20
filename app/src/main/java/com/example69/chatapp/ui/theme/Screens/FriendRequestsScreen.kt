@@ -63,11 +63,11 @@ import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String) -> Unit,viewModel: MainViewModel,dataStore: StoreUserEmail) {
+fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String) -> Unit,viewModel: MainViewModel,dataStore: StoreUserEmail,
+                         scaffoldtext: String, deleteText: String) {
 
     val friendrequests = remember { mutableStateListOf<FriendRequests>() }
     friendrequests.addAll(friendRequests)
-    Log.e("req","fr size is ${friendRequests.size} and fr is: $friendRequests")
 
 
     val sharedKeysViewModel: SharedKeysViewModel = viewModel(
@@ -95,7 +95,7 @@ fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String
         containerColor = Color.White
     ) { innerPadding ->
         if (friendrequests.isEmpty()) {
-            EmptyFriendRequestsView()
+            EmptyFriendRequestsView(deleteText)
         } else {
                 FriendRequestsList(
                     modifier = Modifier.padding(innerPadding),
@@ -106,14 +106,15 @@ fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String
                         sharedKeysViewModel.preloadDecryptedSharedKeys(dataStore)
                         viewModel.getFriendsAndMessages()
                         viewModel.getPhotoUrls()
-                    }
+                    },
+                    scaffoldtext = scaffoldtext
                 )
         }
     }
 }
 
 @Composable
-fun EmptyFriendRequestsView(){
+fun EmptyFriendRequestsView(deleteText: String){
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -126,7 +127,7 @@ fun EmptyFriendRequestsView(){
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Looks like you don't have any friend requests :(",
+            text = deleteText,
             style = MaterialTheme.typography.titleLarge,
             color = Color.Black,
             modifier = Modifier.padding(15.dp),
@@ -226,23 +227,33 @@ fun ReplyEmailListItem(
 fun FriendRequestsList(
     modifier: Modifier,
     friendrequests: MutableList<FriendRequests>,
-    onDelete: (FriendRequests) -> Unit
+    onDelete: (FriendRequests) -> Unit,
+    scaffoldtext: String
 ) {
     val lazyListState = rememberLazyListState()
+    val uniqueEmails = HashSet<String>()
+    val uniqueFriendRequests = mutableListOf<FriendRequests>()
+
+    for (friendrequest in friendrequests) {
+        if (friendrequest.email !in uniqueEmails) {
+            uniqueEmails.add(friendrequest.email)
+            uniqueFriendRequests.add(friendrequest)
+        }
+    }
     LazyColumn(
         state = lazyListState,
         modifier = modifier.padding(top = dimensionResource(id = R.dimen.list_top_padding))
     ) {
         item{
             Text(
-                text = "Swipe Right to accept!",
+                text = scaffoldtext,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(start = 15.dp,top = 4.dp,8.dp),
                 color = Color.Black,
                 fontSize = 18.sp
             )
         }
-        items(friendrequests) { index ->
+        items(uniqueFriendRequests) { index ->
             val friendrequest = index
             if (friendrequest != null) {
                 key(friendrequest) {

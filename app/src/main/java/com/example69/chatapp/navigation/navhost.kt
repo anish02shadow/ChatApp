@@ -19,14 +19,17 @@ import com.example69.chatapp.MainActivity
 import com.example69.chatapp.data.FriendPhoto
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.acceptFriendRequest
+import com.example69.chatapp.firebase.deleteFriendFromUser
 import com.example69.chatapp.firebase.getFriendsPhotos
 import com.example69.chatapp.realmdb.FriendMessagesRealm
 import com.example69.chatapp.realmdb.RealmViewModel
 import com.example69.chatapp.ui.theme.Screens.ChatScreen
 import com.example69.chatapp.ui.theme.Screens.CreateAccountScreenEmail
+import com.example69.chatapp.ui.theme.Screens.DeleteFriendsList
 import com.example69.chatapp.ui.theme.Screens.FriendRequestsScreen
 import com.example69.chatapp.ui.theme.Screens.HomeScreen
 import com.example69.chatapp.ui.theme.Screens.LoginScreenEmail
+import com.example69.chatapp.ui.theme.Screens.OnBoarding
 import com.example69.chatapp.ui.theme.Screens.SignUpScreenEmail
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
@@ -34,6 +37,7 @@ import com.example69.chatapp.ui.theme.ViewModels.MainViewModelFactory
 import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
 import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
 import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
+import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -42,6 +46,7 @@ import java.security.PrivateKey
 import java.security.PublicKey
 
 
+@OptIn(ExperimentalPagerApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainNavigation(activity: MainActivity) {
@@ -98,6 +103,10 @@ fun MainNavigation(activity: MainActivity) {
     }
 
     NavHost(navController = navController, startDestination = HOME_SCREEN) {
+        composable(ONBOARDING_SCREEN){
+            OnBoarding(onNavigateToLogin = { navController.navigate(LOGIN_SCREEN) })
+        }
+
         composable(LOGIN_SCREEN) {
             if (!userIsSignedIn) {
                 LoginScreenEmail(
@@ -130,7 +139,7 @@ fun MainNavigation(activity: MainActivity) {
             userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
             var username = ""
             if (!userIsSignedIn) {
-                navController.navigate(LOGIN_SCREEN)
+                navController.navigate(ONBOARDING_SCREEN)
             } else {
                 LaunchedEffect(emailState.value) {
                     emailState.value = dataStore.getEmail.first()
@@ -161,7 +170,8 @@ fun MainNavigation(activity: MainActivity) {
                             userProfileImage = userProfileImage,
                             viewModel = viewModel,
                             colorViewModel = colorViewModel,
-                            sharedKeysViewModel = sharedKeysViewModel
+                            sharedKeysViewModel = sharedKeysViewModel,
+                            onDeleteFriends = {navController.navigate(DELETE_FRIENDS)}
                         )
                     }
                 }
@@ -231,7 +241,22 @@ fun MainNavigation(activity: MainActivity) {
                 }
                },
                 viewModel = viewModel,
-                dataStore = dataStore
+                dataStore = dataStore,
+                deleteText ="Looks like you don't have any friend requests :(",
+                scaffoldtext =  "Swipe Right to accept!"
+            )
+        }
+        composable(DELETE_FRIENDS){
+            viewModel.getFriends()
+            DeleteFriendsList(viewModel.friends.value, onAccept = { newVal ->
+                scope.launch {
+                    deleteFriendFromUser(newVal,dataStore)
+                }
+            },
+                viewModel = viewModel,
+                dataStore = dataStore,
+                deleteText = "Looks like you don't have any friends :(",
+                scaffoldtext = "Swipe Right to delete!"
             )
         }
     }
@@ -243,5 +268,7 @@ const val LOGIN_SCREEN = "lOGIN screen"
 const val SIGNUP_SCREEN = "Signup Screen"
 const val USERNAME_SCREEN = "Username Screen"
 const val FRIEND_REQUESTS = "Friend Requests Screen"
+const val DELETE_FRIENDS = "Delete Friends Screen"
+const val ONBOARDING_SCREEN = "OnBoarding Screen"
 
 

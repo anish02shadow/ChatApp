@@ -448,6 +448,30 @@ fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = f
     emit(friendRequestsEmailsAndUsernamesAndBio)
 }
 
+fun getFriends(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = flow {
+    val email = dataStore.getEmail.first()
+
+    val friendRequestsEmailsAndUsernamesAndBio = mutableListOf<FriendRequests>()
+
+    val result = db.collection("users").document(email).collection("Requests").get().await()
+
+    for(document in result.documents) {
+        val friendEmail = document.getString("Email")
+        val status = document.getBoolean("Status")
+        if (friendEmail != null && status == true) {
+
+            val friendData = db.collection("users").document(friendEmail).get().await()
+            val username = friendData.getString("Username")
+            val email = friendData.getString("Email")
+            val bio = friendData.getString("Bio")
+            if (username != null) {
+                friendRequestsEmailsAndUsernamesAndBio.add(FriendRequests(username = username, email = email.toString(), bio = bio.toString()))
+            }
+        }
+    }
+    emit(friendRequestsEmailsAndUsernamesAndBio)
+}
+
 fun generateAESKey(): SecretKeySpec {
     val keyGenerator = KeyGenerator.getInstance("AES")
     keyGenerator.init(256)
@@ -601,38 +625,47 @@ suspend fun deleteFriend(email: String, dataStore: StoreUserEmail) {
     }
 }
 
-suspend fun getSharedKeys(email: String): Flow<List<Pair<String,Pair<String,String>>>> = flow{
-    val userRef = db.collection("users").document(email).collection("Friends").get().await()
-    val sharedKeyPairs = mutableListOf<Pair<String, Pair<String, String>>>()
-    for(document in userRef.documents){
-        val friendEmail = document.getString("Email") ?: continue
-        val sharedkey = document.getString("Shared Key")?: ""
-        val sharedkey2 = document.getString("Shared Key 2")?: ""
-        sharedKeyPairs.add(friendEmail to (sharedkey to sharedkey2))
+suspend fun deleteFriendFromUser(email: String, dataStore: StoreUserEmail) {
+    val currentUserEmail = dataStore.getEmail.first()
+
+    val userRequestsRef = db.collection("users").document(currentUserEmail).collection("Requests")
+
+    val friendRef = db.collection("users").document(email).collection("Friends")
+
+    val requestDocument = userRequestsRef.document(email)
+
+    val friendDocument = friendRef.document(currentUserEmail)
+
+    try {
+        // Delete current user from friend's friends list
+        friendDocument.delete().await()
+
+        //Delete user from current user's request list
+        requestDocument.delete().await()
+
+        Log.d("STORE", "Friend $email deleted")
+    } catch (e: Exception) {
+        Log.e("STORE", "Error deleting friend: $e")
     }
-    emit(sharedKeyPairs)
 }
 
-//suspend fun getMood(dataStore: StoreUserEmail): Flow<List<Pair<String,String>>> = flow {
-//    val email = dataStore.getEmail.first()
-//    val userResult = db.collection("users").document(email).get().await()
-//    val userMood = userResult.getString("Mood") ?: "No Mood"
-//    var friendMoodList = mutableListOf<Pair<String,String>>()
-//    val username = userResult.getString("Username")
-//    friendMoodList.add(username.toString() to userMood)
-//    Log.e("GETMOOD", "MOOD got?: $username and $userMood")
-//    val result = db.collection("users").document(email).collection("Friends").get().await()
-//    for (document in result.documents) {
-//        val friendEmail = document.getString("Email")
-//        if(friendEmail != null){
-//            val friendData = db.collection("users").document(friendEmail).get().await()
-//            val friendMood = friendData.getString("Mood") ?: "No Mood"
-//            val friendUsername = friendData.getString("Username")
-//            friendMoodList.add(friendUsername.toString() to friendMood)
-//        }
-//    }
-//    emit(friendMoodList)
-//}
+suspend fun getSharedKeys(email: String): Flow<List<Pair<String,Pair<String,String>>>> = flow {
+    val userRef = db.collection("users").document(email).collection("Friends").get().await()
+    val sharedKeyPairs = mutableListOf<Pair<String, Pair<String, String>>>()
+    if (userRef != null) {
+        Log.e("getSharedKeys","getSharedKeys inside")
+        for (document in userRef.documents) {
+            val status = document.getBoolean("Status")
+            if(status == true){
+                val friendEmail = document.getString("Email") ?: continue
+                val sharedkey = document.getString("Shared Key") ?: ""
+                val sharedkey2 = document.getString("Shared Key 2") ?: ""
+                sharedKeyPairs.add(friendEmail to (sharedkey to sharedkey2))
+            }
+        }
+        emit(sharedKeyPairs)
+    }
+}
 
 suspend fun getMood(dataStore: StoreUserEmail): Flow<Set<String>> = flow {
     val email = dataStore.getEmail.first()
@@ -648,7 +681,8 @@ suspend fun getMood(dataStore: StoreUserEmail): Flow<Set<String>> = flow {
     val result = db.collection("users").document(email).collection("Friends").get().await()
     for (document in result.documents) {
         val friendEmail = document.getString("Email")
-        if (friendEmail != null) {
+        val status = document.getBoolean("Status")
+        if (friendEmail != null && status == true) {
             val friendData = db.collection("users").document(friendEmail).get().await()
             val friendMood = friendData.getString("Mood") ?: "No Mood"
             val friendUsername = friendData.getString("Username") ?: "Unknown"

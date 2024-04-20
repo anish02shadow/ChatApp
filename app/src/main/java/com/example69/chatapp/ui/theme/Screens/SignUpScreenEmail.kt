@@ -355,7 +355,6 @@ fun CustomStyleTextFieldSignUp(
     visualTransformation: VisualTransformation,
     onTextChange: (String) -> Unit
 ) {
-
     OutlinedTextField(
         modifier = Modifier
             .fillMaxWidth()
@@ -363,7 +362,8 @@ fun CustomStyleTextFieldSignUp(
             .background(Color.White),
         value = textState,
         onValueChange = { valueChanged ->
-            onTextChange(valueChanged)
+            val filteredValue = valueChanged.filter { it != '|' } // Filter out '|' character
+            onTextChange(filteredValue)
         },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         placeholder = { Text(text = placeHolder) },

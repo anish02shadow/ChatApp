@@ -26,6 +26,7 @@ class SharedKeysViewModel(private val dataStore: StoreUserEmail) : ViewModel() {
         viewModelScope.launch {
             dataStore.getEmail.collect {
                 emailState = it
+                Log.e("getSharedKeys","emailState is  $emailState")
                 // Retrieve shared keys for each user email
                 if(!emailState.equals("") && emailState!=null){
                     getSharedKeys(emailState).collect { sharedKeysList ->

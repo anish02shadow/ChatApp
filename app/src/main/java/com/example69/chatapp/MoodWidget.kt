@@ -146,7 +146,7 @@ fun ViewStoryLayout2(mood: Set<String>) {
             moods.add(username to moodValue)
         }
     }
-    LazyColumn(modifier = GlanceModifier.padding(12.dp)) {
+    LazyColumn(modifier = GlanceModifier.padding(top = 12.dp, start = 12.dp, bottom = 12.dp, end = 4.dp)) {
         items(moods){ friend ->
             if (friend != null) {
                 UserStory2(friends = friend)
