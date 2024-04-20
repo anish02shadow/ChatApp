@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -47,7 +48,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.dataStore
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,7 +60,6 @@ import com.example69.chatapp.firebase.deleteFriend
 import com.example69.chatapp.realmdb.MessageRealm
 import com.example69.chatapp.ui.theme.*
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
-import com.example69.chatapp.ui.theme.ViewModels.MessageLimitManager
 import com.example69.chatapp.ui.theme.ViewModels.MessageLimitViewModel
 import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
 import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
@@ -117,9 +116,14 @@ fun ChatScreen(
         ) {
             friendUsername?.let {
                 UserNameRow(
-                    modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp),
+                    modifier = Modifier.padding(
+                        top = 30.dp,
+                        start = 20.dp,
+                        end = 20.dp,
+                        bottom = 20.dp
+                    ),
                     name = it,
-                    dataStore = dataStore ,
+                    dataStore = dataStore,
                     email = email,
                     onDeleteNavigateHome = onDeleteNavigateHome,
                     photourl = photourl,
@@ -134,10 +138,11 @@ fun ChatScreen(
                             topStart = 30.dp, topEnd = 30.dp
                         )
                     )
-                    .padding(top = 25.dp)
+                    .padding(top = 15.dp)
 
             ) {
-                    MessagesList(messages = Messages,lazyListState,canChat = canChat)
+
+                MessagesList(messages = Messages, lazyListState, canChat = canChat)
             }
         }
 
@@ -166,6 +171,31 @@ fun ChatScreen(
 
 }
 
+@Composable
+fun endtoendmessage(){
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .background(Color.LightGray, RoundedCornerShape(5.dp)),
+            contentAlignment = Center
+        ) {
+            Text(
+                text = "Messages are End-to-end encrypted. \n" +
+                        "Only you and your friends can read this, \n" +
+                        "not even MoodChat can read this.", style = TextStyle(
+                    color = LightYellow,
+                    fontSize = 12.sp
+                ),
+                modifier = Modifier.padding(vertical = 8.dp, horizontal = 15.dp),
+                textAlign = TextAlign.Start
+            )
+        }
+    }
+}
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MessagesList(
@@ -173,8 +203,9 @@ fun MessagesList(
     lazyListState: LazyListState = rememberLazyListState(),
     canChat: Boolean?) {
 
-    val groupedMessages = messages.groupBy { Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate() }
-
+    val groupedMessages = messages.groupBy {
+        Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+    }
     LazyColumn(
         state = lazyListState,
         modifier = Modifier.padding(
@@ -184,6 +215,9 @@ fun MessagesList(
             bottom = 75.dp
         )
     ) {
+        item(){
+            endtoendmessage()
+        }
         groupedMessages.forEach { (date, dateMessages) ->
             item {
                 DateSeparator(date)
@@ -257,14 +291,16 @@ fun ChatRow(
                 ),
             contentAlignment = Center
         ) {
-            Text(
-                text = message, style = TextStyle(
-                    color = Color.Black,
-                    fontSize = 15.sp
-                ),
-                modifier = Modifier.padding(vertical = 8.dp, horizontal = 15.dp),
-                textAlign = TextAlign.Start
-            )
+            SelectionContainer{
+                Text(
+                    text = message, style = TextStyle(
+                        color = Color.Black,
+                        fontSize = 15.sp
+                    ),
+                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 15.dp),
+                    textAlign = TextAlign.Start
+                )
+            }
         }
         Text(
             text = time,
@@ -376,10 +412,12 @@ fun CommonIconButtonDrawable(
                 onTrailingIconClick()
                 if (canChat == true) {
                     if (canSendMessage) {
-                        messageLimitViewModel.incrementMessageCount()
-                        scope.launch {
-                            addToMessages(message)
-                            addChat(message, friendEmail, dataStore = dataStore)
+                        if(message.isNotEmpty()){
+                            messageLimitViewModel.incrementMessageCount()
+                            scope.launch {
+                                addToMessages(message)
+                                addChat(message, friendEmail, dataStore = dataStore)
+                            }
                         }
                     } else {
                         val okm = "Can't send more than 50 messages per day!"

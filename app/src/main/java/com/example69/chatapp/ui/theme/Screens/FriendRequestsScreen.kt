@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +51,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example69.chatapp.R
 import com.example69.chatapp.animations.FriendRequestCard
@@ -95,17 +97,17 @@ fun FriendRequestsScreen(friendRequests: List<FriendRequests>, onAccept: (String
         if (friendrequests.isEmpty()) {
             EmptyFriendRequestsView()
         } else {
-            FriendRequestsList(
-                modifier = Modifier.padding(innerPadding),
-                friendrequests = friendrequests,
-                onDelete = {
-                    friendrequests.remove(it)
-                    onAccept(it.email)
-                    sharedKeysViewModel.preloadDecryptedSharedKeys(dataStore)
-                    viewModel.getFriendsAndMessages()
-                    viewModel.getPhotoUrls()
-                }
-            )
+                FriendRequestsList(
+                    modifier = Modifier.padding(innerPadding),
+                    friendrequests = friendrequests,
+                    onDelete = {
+                        friendrequests.remove(it)
+                        onAccept(it.email)
+                        sharedKeysViewModel.preloadDecryptedSharedKeys(dataStore)
+                        viewModel.getFriendsAndMessages()
+                        viewModel.getPhotoUrls()
+                    }
+                )
         }
     }
 }
@@ -231,8 +233,17 @@ fun FriendRequestsList(
         state = lazyListState,
         modifier = modifier.padding(top = dimensionResource(id = R.dimen.list_top_padding))
     ) {
-        items(friendrequests.size) { index ->
-            val friendrequest = friendrequests.getOrNull(index)
+        item{
+            Text(
+                text = "Swipe Right to accept!",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(start = 15.dp,top = 4.dp,8.dp),
+                color = Color.Black,
+                fontSize = 18.sp
+            )
+        }
+        items(friendrequests) { index ->
+            val friendrequest = index
             if (friendrequest != null) {
                 key(friendrequest) {
                     FriendRequestCard(friendRequest = friendrequest) {

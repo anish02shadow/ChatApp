@@ -22,7 +22,6 @@ import kotlinx.coroutines.withContext
 
 class MainViewModel(
     private val dataStore: StoreUserEmail,
-    private val navController: NavController,
     private val sharedKeysViewModel: SharedKeysViewModel
 ) : ViewModel() {
     public val _emailState = mutableStateOf("")

@@ -129,4 +129,9 @@ dependencies {
     implementation("io.realm.kotlin:library-base:1.11.0")
 
     implementation("com.github.Lyzev:RSA4K:1.2")
+
+    //Glance
+    // For AppWidgets support
+    implementation "androidx.glance:glance-appwidget:1.0.0"
+    implementation "androidx.glance:glance-material3:1.0.0"
 }

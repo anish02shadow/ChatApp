@@ -63,7 +63,6 @@ suspend fun addFriend(email: String, textState: String, dataStore: StoreUserEmai
             Log.e("STORE", "Already friend present: $textState")
         }
         else{
-            Log.e("STORE", "EMAIL IN ADD FRIEND IS: $email")
             val data = hashMapOf(
                 "Email" to textState,
                 "Status" to false,
@@ -97,22 +96,14 @@ suspend fun updateNameAndBio(
     onNavigateToHome:() ->Unit,
     emaill: String
 ) {
-    //val emaill = dataStore.getEmail.first()
-
-    //val db = FirebaseFirestore.getInstance()
-    Log.e("CREATEUSER", "Create user called HERE")
     val userRef = db.collection("users").document(emaill)
-    Log.e("CREATEUSER", "Create user called")
 
     var pp2 = byteArrayOf()
     dataStore.getPublicKey.collect { publicKey ->
-        Log.e("CREATEUSER", "INSIDEEEEE??????")
+
         pp2 = publicKey.encoded
-        Log.e("CREATEUSER", "DONEEEEEEEE??????")
-        Log.e("CREATEUSER", "Create user called and before after calinmg pp2: $pp2")
 
         val ppk = dataStore.bytesToHex(pp2)
-        Log.e("CREATEUSER", "Create user called and ppk is $ppk")
         if(ppk!=null) {
             try {
                 // Upload the image to Firebase Storage
@@ -146,7 +137,6 @@ suspend fun updateNameAndBio(
                 userRef.set(data).await()
                 onNavigateToHome()
             } catch (e: Exception) {
-                // Handle any errors here
                 Log.e("STORE", "Error updating name, bio, and profile image: $e")
             }
         }
@@ -160,22 +150,14 @@ suspend fun updateNameAndBioWithoutBitmap(
     onNavigateToHome:() ->Unit,
     emaill: String
 ) {
-    //val emaill = dataStore.getEmail.first()
-
-    //val db = FirebaseFirestore.getInstance()
     val userRef = db.collection("users").document(emaill)
-    Log.e("CREATEUSER", "Create user called")
 
-    Log.e("CREATEUSER", "Create user called and before callin pp")
     var pp2 = byteArrayOf()
     dataStore.getPublicKey.collect { publicKey ->
-        Log.e("CREATEUSER", "INSIDEEEEE??????")
+
         pp2 = publicKey.encoded
-        Log.e("CREATEUSER", "DONEEEEEEEE??????")
-        Log.e("CREATEUSER", "Create user called and before after calinmg pp2: $pp2")
 
         val ppk = dataStore.bytesToHex(pp2)
-        Log.e("CREATEUSER", "Create user called and ppk is $ppk")
         if(ppk!=null){
             try {
                 val data = hashMapOf(
@@ -186,29 +168,12 @@ suspend fun updateNameAndBioWithoutBitmap(
                     "ProfileImageUrl" to "No Photo",
                     "Public Key" to ppk
                 )
-                Log.e("CREATEUSER", "Create user called")
                 userRef.set(data).await()
                 onNavigateToHome()
             } catch (e: Exception) {
                 Log.e("STORE", "Error updating name, bio, and profile image: $e")
             }
         }
-    }
-}
-
-
-suspend fun storePhoneNumber(Email: String) {
-    //val db = FirebaseFirestore.getInstance()
-    val userRef = db.collection("users").document(Email)
-
-    val data = hashMapOf(
-        "Email" to Email
-    )
-
-    try {
-        userRef.set(data).await()
-    } catch (e: Exception) {
-        Log.e("STORE", "Error storing phone number: $e")
     }
 }
 
@@ -221,16 +186,12 @@ suspend fun addChat(text: String,email: String,dataStore:StoreUserEmail){
     val realm = BaseApplication.realm
     dataStore.getPublicKey.collect{
         pubKey = it
-        Log.e("STORE", "Message stored in addChat PUB KEY is $pubKey")
         dataStore.getPrivateKey.collect{
             priKey = it
-            Log.e("STORE", "Message stored in addChat priKey KEY is $priKey")
-            //val mes = dataStore.decode(text)
             if (pubKey != null) {
                 if (uid != null && !pubKey.equals("")) {
                     val messagesRealm = MessageRealm()
                     val encrypted_message = dataStore.encryptWithOAEP(text, publicKey =pubKey )
-                    //val decrypted_message = dataStore.decryptWithOAEP(encrypted_message, privateKey =priKey )
                     val userRef = db.collection("users").document(email).collection("Messages").document()
 
                     val timee = FieldValue.serverTimestamp()
@@ -241,8 +202,6 @@ suspend fun addChat(text: String,email: String,dataStore:StoreUserEmail){
                     )
 
                     try {
-                        Log.e("STORE", "Message stored in addChat is $encrypted_message and size: ${encrypted_message.length}")
-                        //Log.e("STORE", "Decrypted message  in addChat is $decrypted_message and size: ${decrypted_message?.length}")
                         val friend2 = realm.query<FriendMessagesRealm>().find()
                         val neww = friend2.query("useremail == $0 AND email == $1", email,email ).find().firstOrNull()
 
@@ -250,13 +209,11 @@ suspend fun addChat(text: String,email: String,dataStore:StoreUserEmail){
                             message = text
                             timestamp = timee2
                         }
-                        Log.e("STORE", "Message stored in firebase is $encrypted_message")
                         userRef.set(data).await()
                         realm.write {
                             if(neww!=null){
                                 findLatest(neww)?.let { live ->
                                     val lol = live.message
-                                    Log.e("LOL", "lol size befire is in addCjhat: ${lol.size}")
                                         val isPresent = lol.any {
                                             timee2 == it.timestamp && it.message == text
                                         }
@@ -264,7 +221,6 @@ suspend fun addChat(text: String,email: String,dataStore:StoreUserEmail){
                                             lol.add(messagesRealm)
                                         }
                                     live.message = lol
-                                    Log.e("LOL", "lol size after is n addCjha: ${lol.size}")
                                 }
                             }
                         }
@@ -306,7 +262,6 @@ fun retrieveOwnMessages(userEmail: String, timestampFirebase: Long, dataStore: S
             timestampInMillis = messageTimestamp?.seconds?.times(1000)?.plus(messageTimestamp.nanoseconds / 1000000) ?: 0L
 
             decryptedMessage = dataStore.decryptWithOAEP(encryptedMessage, privateKey).toString()
-            Log.e("ENCRYPTIONN", "$decryptedMessage is the decrypted message of the user")
 
             ownMessageList.add(Message(decryptedMessage, timestampInMillis, true))
             messagesRealmList.add(MessageRealm().apply {
@@ -320,7 +275,6 @@ fun retrieveOwnMessages(userEmail: String, timestampFirebase: Long, dataStore: S
 
 fun decryptSymmetricKey(encryptedKey: String, privateKey: PrivateKey): SecretKey {
     val encryptedBytes = encryptedKey.toByteArray(Charsets.ISO_8859_1)
-    Log.e("ENCBYTESIZE", "Size of encryptedBytes is: ${encryptedBytes.size} ")
     val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
     cipher.init(Cipher.DECRYPT_MODE, privateKey)
     val decryptedBytes = cipher.doFinal(encryptedBytes)
@@ -328,7 +282,7 @@ fun decryptSymmetricKey(encryptedKey: String, privateKey: PrivateKey): SecretKey
 }
 @RequiresApi(Build.VERSION_CODES.O)
 fun retrieveMessagesNew(emailUser: String, timestampFirebase: Long, userEmail: String, dataStore: StoreUserEmail): Flow<List<Message>> = flow {
-    Log.e("ENCRYPTIONN"," Called retrieveMessagesNew and $emailUser ke andar friends ke andar $userEmail")
+
     val sharedkeyRef = db.collection("users").document(userEmail).collection("Friends").document(emailUser).get().await()
     val aes_sharedkey = sharedkeyRef.getString("Shared Key 2")
     val sharedkey = sharedkeyRef.getString("Shared Key")
@@ -336,7 +290,6 @@ fun retrieveMessagesNew(emailUser: String, timestampFirebase: Long, userEmail: S
     dataStore.getPrivateKey.collect {
         privateKey = it
         if(sharedkey!=null && aes_sharedkey!=null){
-            Log.e("ENCRYPTIONN","SCAM HO RAHA  size of sharedkey is ${sharedkey.length}")
             val aes_key_decrypted = decryptSymmetricKey(sharedkey, privateKey)
 
             val decrypted_shared_key =
@@ -363,7 +316,6 @@ fun retrieveMessagesNew(emailUser: String, timestampFirebase: Long, userEmail: S
                 timestampInMillis = messageTimestamp?.seconds?.times(1000)?.plus(messageTimestamp.nanoseconds / 1000000) ?: 0L
                 val decrypted_msg =
                     decrypted_shared_key?.let { it1 -> dataStore.decryptWithOAEP(messagee, it1) }
-                Log.e("ENCRYPTIONN","$decrypted_msg is the decrypted message of FRIEND")
                 friendMessageList.add(Message(decrypted_msg.toString(), timestampInMillis, false))
                 messagesRealmList.add(MessageRealm().apply {
                     message = decrypted_msg.toString()
@@ -372,8 +324,7 @@ fun retrieveMessagesNew(emailUser: String, timestampFirebase: Long, userEmail: S
             }
             emit(friendMessageList)
         }
-        }
-
+    }
 }
 
 fun getFriendsPhotos(dataStore: StoreUserEmail):Flow<Pair<List<FriendPhoto>,FriendPhoto>> = flow{
@@ -395,8 +346,6 @@ fun getFriendsPhotos(dataStore: StoreUserEmail):Flow<Pair<List<FriendPhoto>,Frie
 }
 
 fun getUserMessageInfo(dataStore: StoreUserEmail,email: String): Flow<Pair<String?,Long>> = flow{
-    Log.e("PASSWORD", "$email is email in getUserMessageInfo ")
-    //val db = FirebaseFirestore.getInstance()
     val userResult = db.collection("users").document(email).collection("Messages").orderBy("timestamp", Query.Direction.DESCENDING).get().await()
     val userLatestMessage = userResult.documents.getOrNull(0)?.getString("message") ?: "No Messages"
     val lastmessagetime = userResult.documents.getOrNull(0)?.getTimestamp("timestamp")
@@ -411,8 +360,9 @@ fun getFriendsEmails(
     dataStore: StoreUserEmail,
     sharedKeysViewModel: SharedKeysViewModel
 ): Flow<Pair<List<FriendsData>, Pair<String?, Long>>> = flow {
+
     val friendEmailsAndUsernames = mutableListOf<FriendsData>()
-    Log.e("LEMON", "getFriendsEmails is called")
+
     val userResult = db.collection("users").document(email).collection("Messages")
         .orderBy("timestamp", Query.Direction.DESCENDING)
         .get().await()
@@ -434,25 +384,30 @@ fun getFriendsEmails(
         }
         for (document in result.documents) {
             val friendEmail = document.getString("Email")
+
             val status = document.getBoolean("Status")
+
             if (friendEmail != null && status == true) {
+
                 val friendData = db.collection("users").document(friendEmail).get().await()
+
                 val friendMessagesRef = db.collection("users").document(friendEmail).collection("Messages")
                     .orderBy("timestamp", Query.Direction.DESCENDING).limit(1).get().await()
+
                 val username = friendData.getString("Username")
+
                 val mood = friendData.getString("Mood")
+
                 val lastMessage = friendMessagesRef.documents.getOrNull(0)?.getString("message") ?: "No Messages"
+
                 val lastMessageTime = friendMessagesRef.documents.getOrNull(0)?.getTimestamp("timestamp")
                 val friendTimestampInMillis =
                     lastMessageTime?.seconds?.times(1000)?.plus(lastMessageTime.nanoseconds / 1000000) ?: 0L
 
                 if (username != null) {
-                    Log.e("LEMON", "$username is added")
 
-                    // Retrieve the shared key from the view model
                     val sharedKey = sharedKeysViewModel.cachedSharedKeys[friendEmail]
 
-                    // Decrypt the latest message using the shared key
                     val decryptedMessage = sharedKey?.let { dataStore.decryptWithOAEP(lastMessage, it) } ?: lastMessage
 
                     friendEmailsAndUsernames.add(
@@ -470,36 +425,6 @@ fun getFriendsEmails(
         emit(friendEmailsAndUsernames to (userLatestMessage_decrypted to timestampInMillis))
     }
 }
-
-
-//fun getFriendsEmails(email: String, dataStore: StoreUserEmail, sharedKeysViewModel: SharedKeysViewModel): Flow<Pair<List<FriendsData>,Pair<String?,Long>>> = flow {
-//    val friendEmailsAndUsernames = mutableListOf<FriendsData>()
-//
-//    val userResult = db.collection("users").document(email).collection("Messages").orderBy("timestamp", Query.Direction.DESCENDING).get().await()
-//    val userLatestMessage = userResult.documents.getOrNull(0)?.getString("message") ?: "No Messages"
-//    val lastmessagetime = userResult.documents.getOrNull(0)?.getTimestamp("timestamp")
-//    val timestampInMillis = lastmessagetime?.seconds?.times(1000)?.plus(lastmessagetime.nanoseconds / 1000000) ?: 0L
-//
-//    val result = db.collection("users").document(email).collection("Friends").get().await()
-//    for (document in result.documents) {
-//        val friendEmail = document.getString("Email")
-//        val status = document.getBoolean("Status")
-//        if (friendEmail != null && status == true) {
-//            val friendData = db.collection("users").document(friendEmail).get().await()
-//            val friendMessagesRef = db.collection("users").document(friendEmail).collection("Messages").orderBy("timestamp", Query.Direction.DESCENDING).limit(1).get().await()
-//            val username = friendData.getString("Username")
-//            val mood = friendData.getString("Mood")
-//            val lastmessage = friendMessagesRef.documents.getOrNull(0)?.getString("message") ?: "No Messages"
-//            val lastmessagetime = friendMessagesRef.documents.getOrNull(0)?.getTimestamp("timestamp")
-//            val timestampInMillis = lastmessagetime?.seconds?.times(1000)?.plus(lastmessagetime.nanoseconds / 1000000) ?: 0L
-//             if (username != null) {
-//                 Log.e("ENCRYPTIONN","$username si added")
-//                friendEmailsAndUsernames.add(FriendsData(Username = username, Email = friendEmail, Mood = mood, lastMessage = lastmessage, lastMessageTime = timestampInMillis ))
-//            }
-//        }
-//    }
-//    emit(friendEmailsAndUsernames to (userLatestMessage to timestampInMillis))
-//}
 
 fun getFriendRequests(dataStore: StoreUserEmail): Flow<List<FriendRequests>> = flow {
     val email = dataStore.getEmail.first()
@@ -538,12 +463,9 @@ fun encryptPrivateKeyToString(privateKey: PrivateKey, aesKey: SecretKey): String
 }
 
 fun encryptSymmetricKey(aesKey: SecretKey, publicKey: PublicKey): String {
-    Log.e("ENCBYTESIZE", "encryptSymmetricKey called ")
     val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
     cipher.init(Cipher.ENCRYPT_MODE, publicKey)
     val encryptedBytes = cipher.doFinal(aesKey.encoded)
-    Log.e("ENCBYTESIZE", "Size of encryptedBytes is: ${encryptedBytes.size} ")
-    Log.e("ENCBYTESIZE", "Size of aesKey.encoded is: ${aesKey.encoded.size} ")
     return encryptedBytes.toString(Charsets.ISO_8859_1)
 }
 
@@ -559,27 +481,18 @@ fun decryptPrivateKeyFromString(encryptedPrivateKeyString: String, aesKey: Secre
 @RequiresApi(Build.VERSION_CODES.O)
 suspend fun acceptFriendRequest(email: String, dataStore: StoreUserEmail) {
     val currentUserEmail = dataStore.getEmail.first()
-    Log.e("CHECKING","CALLED acceptFriendRequest")
-
-    // Boolean flag to track if the block has been executed
     var blockExecuted = false
 
     var currentUserPrivateKey: PrivateKey
     dataStore.getPrivateKey.collect {
-        // Check if the block has been executed before
         if (!blockExecuted) {
             currentUserPrivateKey = it
             val friendPublicKey = getPublickKey(email,dataStore)
 
-            val check = dataStore.bytesToHex(currentUserPrivateKey.encoded)
-            Log.e("CHECKING","$check and size is: ${check.length}")
             if (friendPublicKey != null) {
                 val symmetricKey = generateAESKey()
                 val encryptedString = encryptPrivateKeyToString(currentUserPrivateKey, symmetricKey)
-                Log.e("ENCBYTESIZE", "encryptSymmetricKey IS CALLED HERE ONLY ONCE PLS MAN spare me ")
                 val encryptedSymmetricKey = encryptSymmetricKey(symmetricKey, friendPublicKey)
-
-                Log.e("CHECKING","$encryptedSymmetricKey is encryptedSymmetricKey and size is: ${encryptedSymmetricKey.length}")
 
                 val userRequestsRef = db.collection("users").document(currentUserEmail).collection("Requests")
                 val friendRef = db.collection("users").document(email).collection("Friends")
@@ -609,7 +522,6 @@ suspend fun acceptFriendRequest(email: String, dataStore: StoreUserEmail) {
                     Log.e("CHECKING", "Error accepting friend request: $e")
                 }
             }
-            // Set the flag to true after the block is executed
             blockExecuted = true
         }
     }
@@ -668,7 +580,6 @@ fun getMood(email: String): Flow<String?> = flow{
 suspend fun deleteFriend(email: String, dataStore: StoreUserEmail) {
     val currentUserEmail = dataStore.getEmail.first()
 
-    //val db = FirebaseFirestore.getInstance()
     val userRequestsRef = db.collection("users").document(currentUserEmail).collection("Friends")
 
     val friendRef = db.collection("users").document(email).collection("Requests")
@@ -679,11 +590,9 @@ suspend fun deleteFriend(email: String, dataStore: StoreUserEmail) {
 
     try {
         // Delete current user from friend's friends list
-        Log.e("DELETEE","deleting from friend request")
         friendDocument.delete().await()
 
         //Delete user from current user's request list
-        Log.e("DELETEE","deleting from current user friends")
         requestDocument.delete().await()
 
         Log.d("STORE", "Friend $email deleted")
@@ -703,5 +612,52 @@ suspend fun getSharedKeys(email: String): Flow<List<Pair<String,Pair<String,Stri
     }
     emit(sharedKeyPairs)
 }
+
+//suspend fun getMood(dataStore: StoreUserEmail): Flow<List<Pair<String,String>>> = flow {
+//    val email = dataStore.getEmail.first()
+//    val userResult = db.collection("users").document(email).get().await()
+//    val userMood = userResult.getString("Mood") ?: "No Mood"
+//    var friendMoodList = mutableListOf<Pair<String,String>>()
+//    val username = userResult.getString("Username")
+//    friendMoodList.add(username.toString() to userMood)
+//    Log.e("GETMOOD", "MOOD got?: $username and $userMood")
+//    val result = db.collection("users").document(email).collection("Friends").get().await()
+//    for (document in result.documents) {
+//        val friendEmail = document.getString("Email")
+//        if(friendEmail != null){
+//            val friendData = db.collection("users").document(friendEmail).get().await()
+//            val friendMood = friendData.getString("Mood") ?: "No Mood"
+//            val friendUsername = friendData.getString("Username")
+//            friendMoodList.add(friendUsername.toString() to friendMood)
+//        }
+//    }
+//    emit(friendMoodList)
+//}
+
+suspend fun getMood(dataStore: StoreUserEmail): Flow<Set<String>> = flow {
+    val email = dataStore.getEmail.first()
+    Log.e("GETMOODCALLED","GEt mood is aclled")
+    val userResult = db.collection("users").document(email).get().await()
+    val userMood = userResult.getString("Mood") ?: "No Mood"
+    val username = userResult.getString("Username") ?: "Unknown"
+    val userPair = "$username|$userMood"
+
+    val friendMoodList = mutableSetOf<String>()
+    friendMoodList.add(userPair)
+
+    val result = db.collection("users").document(email).collection("Friends").get().await()
+    for (document in result.documents) {
+        val friendEmail = document.getString("Email")
+        if (friendEmail != null) {
+            val friendData = db.collection("users").document(friendEmail).get().await()
+            val friendMood = friendData.getString("Mood") ?: "No Mood"
+            val friendUsername = friendData.getString("Username") ?: "Unknown"
+            val friendPair = "$friendUsername|$friendMood"
+            friendMoodList.add(friendPair)
+        }
+    }
+    emit(friendMoodList)
+}
+
 
 

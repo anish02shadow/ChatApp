@@ -17,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,10 +37,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example69.chatapp.R
 import com.example69.chatapp.animations.MinaBoxAdvancedScreen
 import com.example69.chatapp.auth.AuthViewModel
-import com.example69.chatapp.firebase.storePhoneNumber
-import com.example69.chatapp.utils.ResultState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 
 @Composable

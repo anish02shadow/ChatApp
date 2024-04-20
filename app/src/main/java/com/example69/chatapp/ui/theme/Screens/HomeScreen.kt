@@ -33,7 +33,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
@@ -92,8 +91,6 @@ import com.example69.chatapp.firebase.getMood
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Observer
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example69.chatapp.data.FriendPhoto
 import com.example69.chatapp.realmdb.FriendMessagesRealm
@@ -102,7 +99,6 @@ import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
 import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
@@ -218,8 +214,9 @@ fun Searchbar2(updatePopUp: (Boolean) -> Unit, onLogOutPress: () -> Unit, onFrie
             DropdownMenu(expanded = Expanded , onDismissRequest = { Expanded = false }) {
                 DropdownMenuItem(text = { Text("Add Friends") }, onClick = { updatePopUp(true) }, colors = MenuDefaults.itemColors(
                     ))
-                DropdownMenuItem(text = { Text("Log Out") }, onClick = { FirebaseAuth.getInstance().signOut()
+                DropdownMenuItem(text = { Text("Log Out") }, onClick = {
                     scope.launch {
+                        FirebaseAuth.getInstance().signOut()
                         dataStore.saveEmail("")
                         dataStore.saveUsername("")
                         onLogOutPress()
@@ -384,30 +381,26 @@ fun HomeScreen(
 
 
     val USERDATA by realmViewModel.friendMessagesRealm.collectAsState()
-    //Log.e("ENCRYPTIONN","USERDATA is $USERDATA")
+
     val UserLatestMessage by realmViewModel.userLatestMessage.collectAsState()
-    //Log.e("ENCRYPTIONN","UserLatestMessage is $UserLatestMessage")
 
     val UserLatestMessageTime by realmViewModel.userLatestMessageTime.collectAsState()
-    //Log.e("ENCRYPTIONN","UserLatestMessageTime is $UserLatestMessageTime")
+
     val UserMood by realmViewModel.userMood.collectAsState()
-    //Log.e("ENCRYPTIONN","UserMood is $UserMood")
 
     val sheetState = rememberModalBottomSheetState()
 
     val pullRefreshState = rememberPullToRefreshState()
     if (pullRefreshState.isRefreshing) {
-        Log.e("LEMON", "getFriendsEmails is called")
+
         val friendemails = getFriendsEmails(emailState.value, dataStore, sharedKeysViewModel)
-        Log.e("LEMON", "getFriendsEmails is fnishihed")
+
         val getmood = getMood(email2)
-        Log.e("LEMON", "getMOod is fnishihed")
+
         LaunchedEffect(true) {
-            Log.e("LEMON", "inside launched efecty")
             if(friendemails!=null){
                 friendemails.collect { (friendsList, messageData) ->
                     val friendMessagesRealm = friendsList.map { friendsData ->
-                        Log.e("LEMON", "collecint g data ${friendsData.Email}")
                         FriendMessagesRealm().apply {
                             useremail = emailState.value
                             email = friendsData.Email
@@ -417,22 +410,18 @@ fun HomeScreen(
                             lastMessageTime = friendsData.lastMessageTime!!
                         }
                     }
-                    Log.e("LEMON", "FriendMessagesRealm done")
+
                     getmood.collect{ moodnew ->
                         realmViewModel.updateMood(moodnew.toString())
                     }
-                    Log.e("LEMON", "getmood done")
+
                     realmViewModel.updateData(friendMessagesRealm,
                         messageData.first.toString(), latestmessagetime = messageData.second)
-                    Log.e("LEMON", "  realmViewModel.updateData(friendMessagesRealm, done")
 
-                    Log.e("LEMON", "outside")
                     realmViewModel.addMessagesToRealm(email2)
-                    Log.e("LEMON", "pullRefreshState.endrefrsh")
+
                     pullRefreshState.endRefresh()
                 }
-                //Log.e("ENCRYPTIONN","WHy arent u being called")
-
             }
         }
     }

@@ -48,15 +48,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.rememberAsyncImagePainter
 import coil.compose.rememberImagePainter
 import com.example69.chatapp.R
 import com.example69.chatapp.auth.AuthViewModel
 import com.example69.chatapp.data.StoreUserEmail
-import com.example69.chatapp.firebase.storePhoneNumber
 import com.example69.chatapp.firebase.updateNameAndBio
 import com.example69.chatapp.firebase.updateNameAndBioWithoutBitmap
-import com.example69.chatapp.navigation.HOME_SCREEN
 import com.example69.chatapp.utils.ResultState
 import kotlinx.coroutines.launch
 import java.math.BigInteger

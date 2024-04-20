@@ -77,7 +77,7 @@ fun MainNavigation(activity: MainActivity) {
 
     val viewModel: MainViewModel = viewModel(
         key = "MainViewModel",
-        factory = MainViewModelFactory(dataStore, navController,sharedKeysViewModel)
+        factory = MainViewModelFactory(dataStore,sharedKeysViewModel)
     )
 
     val realmViewModel: RealmViewModel = viewModel(
@@ -133,7 +133,6 @@ fun MainNavigation(activity: MainActivity) {
                 navController.navigate(LOGIN_SCREEN)
             } else {
                 LaunchedEffect(emailState.value) {
-                    Log.e("USERNAMEVLAUE", "Username is: $username HOMESCREENN")
                     emailState.value = dataStore.getEmail.first()
                     viewModel.onEmailChange(emailState.value)
                     viewModel.getmood(emailState.value)
@@ -141,12 +140,12 @@ fun MainNavigation(activity: MainActivity) {
                         photoUrls = photos
                         userProfileImage = userProfileImagee
                     }
-                    // Log.e("ENCRYPTIONN","Launched effect over IG")
+
                 }
                 if (emailState.value.isNotEmpty()) {
-                    //Log.e("ENCRYPTIONN","emailstate.value not empty")
+
                     if (userIsSignedIn && realmViewModel.friendMessagesRealm != emptyList<FriendMessagesRealm>()) {
-                        // Log.e("ENCRYPTIONN","ecalled home screen")
+
                         HomeScreen(
                             onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
                             email2 = emailState.value,
@@ -219,8 +218,7 @@ fun MainNavigation(activity: MainActivity) {
                                 navController.navigate(HOME_SCREEN)
                             }
                         }
-                    }
-                                   },
+                    } },
                 activity = activity,
                 otpState = otpState.value,
                 phoneState = phoneState.value)
