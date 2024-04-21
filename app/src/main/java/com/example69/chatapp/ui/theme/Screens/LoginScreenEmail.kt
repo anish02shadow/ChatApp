@@ -46,6 +46,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -76,35 +77,41 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                      realmViewModel: RealmViewModel,
                      dataStore: StoreUserEmail,
                      onUsernameCheck: (String) ->Unit) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Cyan),
+        //horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        item {
-            ConstraintLayout {
-                val (image, loginForm) = createRefs()
+//        item {
+//            ConstraintLayout {
+//                val (image, loginForm) = createRefs()
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .height(280.dp)
-                        .constrainAs(image) {
-                            top.linkTo(loginForm.top)
-                            bottom.linkTo(loginForm.top)
-                            start.linkTo(parent.start)
-                            end.linkTo(parent.end)
-                        }) {
+                        //.height(240.dp)
+                        .fillMaxHeight(0.5f)
+                        .fillMaxWidth()
+//                        .constrainAs(image) {
+//                            top.linkTo(loginForm.top)
+//                            bottom.linkTo(loginForm.top)
+//                            start.linkTo(parent.start)
+//                            end.linkTo(parent.end)
+//                        }
+                ) {
                     MinaBoxAdvancedScreen()
                 }
                 Card(
                     shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 100.dp)
-                        .constrainAs(loginForm) {
-                            bottom.linkTo(parent.bottom)
-                            start.linkTo(parent.start)
-                            end.linkTo(parent.end)
-                        },
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.65f)
+                        .align(Alignment.BottomCenter)
+                        //.padding(top = 100.dp)
+//                        .constrainAs(loginForm) {
+//                            bottom.linkTo(parent.bottom)
+//                            start.linkTo(parent.start)
+//                            end.linkTo(parent.end)
+//                        }
+                    ,
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFFF8F8F8),
                     )
@@ -309,8 +316,7 @@ fun LoginScreenEmail(onNavigateToHome: ()->Unit = {},
                 }
             }
         }
-    }
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -325,14 +331,15 @@ fun CustomStyleTextField(
 
     OutlinedTextField(
         modifier = Modifier
-            .fillMaxSize()
+            .height(58.dp)
+            .fillMaxWidth()
             .background(Color.White),
         value = textState,
         onValueChange = { valueChanged ->
             //textState = valueChanged // Update the local state
             onTextChange(valueChanged) // Call the callback function to update external state
         },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType,imeAction = ImeAction.None),
         placeholder = { Text(text = placeHolder) },
         leadingIcon = {
             Row(
@@ -388,14 +395,15 @@ fun CustomStyleTextFieldPassword(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     OutlinedTextField(
         modifier = Modifier
-            .fillMaxSize()
+            .height(58.dp)
+            .fillMaxWidth()
             .background(Color.White),
         value = textState,
         onValueChange = { valueChanged ->
             //textState = valueChanged // Update the local state
             onTextChange(valueChanged) // Call the callback function to update external state
         },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.None),
         placeholder = { Text(text = placeHolder) },
         leadingIcon = {
             Row(

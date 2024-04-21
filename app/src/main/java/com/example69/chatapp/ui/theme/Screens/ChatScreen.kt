@@ -326,47 +326,49 @@ fun CustomTextField(
     addToMessages: (String) -> Unit,
     dataStore: StoreUserEmail
 ) {
-    val maxLength = 190
+    if(canChat == true){
+        val maxLength = 190
 
-    val transformedText = remember(text) {
-        val trimmedText = if (text.length > maxLength) text.substring(0, maxLength) else text
-        mutableStateOf(trimmedText)
+        val transformedText = remember(text) {
+            val trimmedText = if (text.length > maxLength) text.substring(0, maxLength) else text
+            mutableStateOf(trimmedText)
+        }
+
+        TextField(
+            value = transformedText.value,
+            onValueChange = { newString ->
+                if (newString.toByteArray(Charsets.UTF_8).size <= maxLength) {
+                    transformedText.value = newString
+                    onValueChange(newString)
+                }
+            },
+            placeholder = {
+                Text(
+                    text = "Type Message",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color.Black
+                    ),
+                    textAlign = TextAlign.Center
+                )
+            },
+            maxLines = 3,
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                focusedContainerColor = Gray400,
+                unfocusedContainerColor = Gray400,
+                disabledContainerColor = Gray400,
+                focusedIndicatorColor = Color.DarkGray,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
+            trailingIcon = {
+                CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick, addToMessages = addToMessages, dataStore = dataStore)
+            },
+            modifier = modifier.fillMaxWidth(),
+            shape = CircleShape
+        )
     }
-
-    TextField(
-        value = transformedText.value,
-        onValueChange = { newString ->
-            if (newString.toByteArray(Charsets.UTF_8).size <= maxLength) {
-                transformedText.value = newString
-                onValueChange(newString)
-            }
-        },
-        placeholder = {
-            Text(
-                text = "Type Message",
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    color = Color.Black
-                ),
-                textAlign = TextAlign.Center
-            )
-        },
-        maxLines = 3,
-        colors = TextFieldDefaults.colors(
-            focusedTextColor = Color.Black,
-            focusedContainerColor = Gray400,
-            unfocusedContainerColor = Gray400,
-            disabledContainerColor = Gray400,
-            focusedIndicatorColor = Color.DarkGray,
-            unfocusedIndicatorColor = Color.Transparent,
-        ),
-        leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
-        trailingIcon = {
-            CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick, addToMessages = addToMessages, dataStore = dataStore)
-        },
-        modifier = modifier.fillMaxWidth(),
-        shape = CircleShape
-    )
 }
 
 @Composable
@@ -451,8 +453,6 @@ fun UserNameRow(
     onDeleteNavigateHome: () ->Unit,
     photourl: String,
     colorViewModel: ColorViewModel
-
-
 ) {
     val color = remember { mutableStateOf(colorViewModel.getColor(email)) }
     val painter = rememberAsyncImagePainter(

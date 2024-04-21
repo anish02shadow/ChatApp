@@ -199,8 +199,7 @@ fun MainNavigation(activity: MainActivity) {
             }
         }
         composable(SIGNUP_SCREEN) {
-            CreateAccountScreenEmail(onNavigateToUsername = { navController.navigate(USERNAME_SCREEN) },
-                activity = activity,
+            CreateAccountScreenEmail(
                 onEmailChange = { newVal,newPass ->
                     scope.launch {
                         phoneState.value = newVal
@@ -256,7 +255,7 @@ fun MainNavigation(activity: MainActivity) {
                 viewModel = viewModel,
                 dataStore = dataStore,
                 deleteText = "Looks like you don't have any friends :(",
-                scaffoldtext = "Swipe Right to delete!"
+                scaffoldtext = "Swipe Right to delete who all can view your messages"
             )
         }
     }
