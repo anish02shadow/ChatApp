@@ -30,24 +30,15 @@ class AuthRepositoryImpl @Inject constructor(
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // Sign in success, update UI with the signed-in user's information
-                    Log.d(TAG, "signInWithEmail:success")
                     trySend(ResultState.Success("Logged in Successfully using email and password"))
-                    val user = auth.currentUser
-
-
                 } else {
-                    trySend(ResultState.Failure("Failed to Sign In Wrong credentials maybe"))
-                    // If sign in fails, display a message to the user.
-                    Log.w(TAG, "signInWithEmail:failure", task.exception)
-
+                    val partAfterColon = task.exception.toString().substringAfter(":", "").trim()
+                    trySend(ResultState.Failure(partAfterColon))
                 }
             }
         awaitClose{
             close()
         }
-
-
     }
 
     override fun createUserWithEmail(email: String, password: String, activity: Activity): Flow<ResultState<String>> = callbackFlow {
@@ -57,13 +48,10 @@ class AuthRepositoryImpl @Inject constructor(
 
         auth.createUserWithEmailAndPassword(email,password).addOnCompleteListener {task ->
             if(task.isSuccessful){
-                Log.d(TAG, "createUserWithEmail:success")
                 trySend(ResultState.Success("EMAIL SUCCESS"))
-                val user = auth.currentUser
-
             }else{
-                Log.w(TAG, "createUserWithEmail:failure", task.exception)
-                //trySend(ResultState.Failure("Email Account creation failiure"))
+                val partAfterColon = task.exception.toString().substringAfter(":", "").trim()
+                trySend(ResultState.Failure(partAfterColon))
             }
         }
         awaitClose {

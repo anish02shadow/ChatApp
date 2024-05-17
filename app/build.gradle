@@ -5,6 +5,7 @@ plugins {
     id("com.google.gms.google-services")
     id 'kotlin-kapt'
     id 'dagger.hilt.android.plugin'
+    id 'io.realm.kotlin'
 }
 
 android {
@@ -120,4 +121,19 @@ dependencies {
 
     //Glide
     implementation 'com.github.bumptech.glide:glide:4.16.0'
+
+    //Hexagon List
+    implementation("io.github.oleksandrbalan:minabox:1.7.1")
+
+    //Realm DB
+    implementation("io.realm.kotlin:library-base:1.11.0")
+
+    implementation("com.github.Lyzev:RSA4K:1.2")
+
+    //Glance
+    // For AppWidgets support
+    implementation "androidx.glance:glance-appwidget:1.0.0"
+    implementation "androidx.glance:glance-material3:1.0.0"
+
+    implementation 'com.google.accompanist:accompanist-pager:0.24.13-rc'
 }

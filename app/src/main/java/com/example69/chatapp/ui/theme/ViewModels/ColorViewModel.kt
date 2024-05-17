@@ -12,7 +12,7 @@ class ColorViewModel : ViewModel() {
         return _colors.getOrPut(key) { pickRandomColor() }
     }
 
-    public fun pickRandomColor() = Color(
+     fun pickRandomColor() = Color(
         arrayListOf(
             0xFFE57373, 0xFFBA68C8, 0xFF9575CD, 0xFFF06292,
             0xFF64B5F6, 0xFF4DD0E1, 0xFFFF8A65,

@@ -2,6 +2,7 @@ package com.example69.chatapp.ui.theme.Screens
 
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -14,7 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -22,11 +23,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -49,34 +48,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.core.DataStore
-import androidx.navigation.NavHostController
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example69.chatapp.R
-import com.example69.chatapp.data.Message
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.addChat
 import com.example69.chatapp.firebase.deleteFriend
+import com.example69.chatapp.realmdb.MessageRealm
 import com.example69.chatapp.ui.theme.*
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.filter
+import com.example69.chatapp.ui.theme.ViewModels.MessageLimitViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
@@ -85,38 +77,34 @@ import java.util.Locale
 @Composable
 fun ChatScreen(
     email: String,
-    //messages: List<Message>,
-    messages: Flow<List<Message>>,
+    messages: List<MessageRealm>,
     friendUsername: String?,
     canChat: Boolean?,
     dataStore: StoreUserEmail,
     onDeleteNavigateHome: () ->Unit,
     photourl: String,
-    colorViewModel: ColorViewModel
+    colorViewModel: ColorViewModel,
 ) {
 
     val lazyListState = rememberLazyListState()
-    var message by remember { mutableStateOf("") }
 
-    //var Messages by remember { mutableStateOf(messages) }
+    var (Messages,setCurrentMessages) = remember { mutableStateOf(messages) }
 
-    var Messages by remember { mutableStateOf(emptyList<Message>()) }
 
     LaunchedEffect(messages) {
-        val job = launch {
-            messages.collect { newMessages ->
-                Messages = newMessages
-                if (newMessages.isNotEmpty()) {
-                    lazyListState.scrollToItem(newMessages.size - 1)
-                }
-            }
+        setCurrentMessages(messages)
+        if (Messages.isNotEmpty()) {
+            lazyListState.scrollToItem(Messages.size - 1)
         }
     }
-//    LaunchedEffect(messages) {
-//        if (Messages.isNotEmpty()) {
-//            lazyListState.scrollToItem(Messages.size - 1)
-//        }
-//    }
+
+    val onMessageEntered: (String) -> Unit = { newMessage ->
+        val currentTimestamp = System.currentTimeMillis()
+        setCurrentMessages(Messages + MessageRealm().apply {
+            message = newMessage
+            timestamp = currentTimestamp
+        })
+    }
 
     Box(
         modifier = Modifier
@@ -128,9 +116,14 @@ fun ChatScreen(
         ) {
             friendUsername?.let {
                 UserNameRow(
-                    modifier = Modifier.padding(top = 30.dp, start = 20.dp, end = 20.dp, bottom = 20.dp),
+                    modifier = Modifier.padding(
+                        top = 30.dp,
+                        start = 20.dp,
+                        end = 20.dp,
+                        bottom = 20.dp
+                    ),
                     name = it,
-                    dataStore = dataStore ,
+                    dataStore = dataStore,
                     email = email,
                     onDeleteNavigateHome = onDeleteNavigateHome,
                     photourl = photourl,
@@ -145,23 +138,23 @@ fun ChatScreen(
                             topStart = 30.dp, topEnd = 30.dp
                         )
                     )
-                    .padding(top = 25.dp)
+                    .padding(top = 15.dp)
 
             ) {
-                    MessagesList(messages = Messages,lazyListState,canChat = canChat)
+
+                MessagesList(messages = Messages, lazyListState, canChat = canChat)
             }
         }
 
         var message by remember { mutableStateOf("") }
         val focusManager = LocalFocusManager.current
 
-        // Define the function to handle trailing icon click
         val onTrailingIconClick: () -> Unit = {
-            message = "" // Clear the text
+            message = ""
             focusManager.clearFocus() // Close the keyboard
         }
 
-        email?.let {
+        email.let {
             CustomTextField(
                 text = message, onValueChange = { message = it },
                 modifier = Modifier
@@ -169,19 +162,50 @@ fun ChatScreen(
                     .align(BottomCenter),
                 canChat = canChat,
                 friendEmail = it,
-                onTrailingIconClick = onTrailingIconClick
+                onTrailingIconClick = onTrailingIconClick,
+                addToMessages = onMessageEntered,
+                dataStore = dataStore
             )
         }
     }
 
 }
 
+@Composable
+fun endtoendmessage(){
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .background(Color.LightGray, RoundedCornerShape(5.dp)),
+            contentAlignment = Center
+        ) {
+            Text(
+                text = "Messages are End-to-end encrypted. \n" +
+                        "Only you and your friends can read this, \n" +
+                        "not even MoodChat can read this.", style = TextStyle(
+                    color = LightYellow,
+                    fontSize = 12.sp
+                ),
+                modifier = Modifier.padding(vertical = 8.dp, horizontal = 15.dp),
+                textAlign = TextAlign.Start
+            )
+        }
+    }
+}
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun MessagesList(messages: List<Message>,lazyListState: LazyListState = rememberLazyListState(), canChat: Boolean?) {
+fun MessagesList(
+    messages: List<MessageRealm>,
+    lazyListState: LazyListState = rememberLazyListState(),
+    canChat: Boolean?) {
 
-    val groupedMessages = messages.groupBy { Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate() }
-
+    val groupedMessages = messages.groupBy {
+        Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+    }
     LazyColumn(
         state = lazyListState,
         modifier = Modifier.padding(
@@ -191,18 +215,14 @@ fun MessagesList(messages: List<Message>,lazyListState: LazyListState = remember
             bottom = 75.dp
         )
     ) {
-//        items(messages, key = { it.timestamp }) { message ->
-//        ChatRow(
-//            direction = !canChat!!,
-//            message = message.message,
-//            time = formatTimestamp(message.timestamp)
-//        )
-//    }
+        item(){
+            endtoendmessage()
+        }
         groupedMessages.forEach { (date, dateMessages) ->
             item {
                 DateSeparator(date)
             }
-            items(dateMessages, key = { it.timestamp }) { message ->
+            items(dateMessages) { message ->
                 ChatRow(
                     direction = !canChat!!,
                     message = message.message,
@@ -220,14 +240,13 @@ fun DateSeparator(date: LocalDate) {
         LocalDate.now() -> "Today"
         LocalDate.now().minusDays(1) -> "Yesterday"
         else -> "${date.dayOfMonth}${getDayOfMonthSuffix(date.dayOfMonth)} ${date.month.getDisplayName(java.time.format.TextStyle.FULL,Locale.getDefault())} ${date.year}"
-            //date.format(DateTimeFormatter.ofPattern("dd:MM:yyyy"))
     }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center
+        contentAlignment = Center
     ) {
         Text(
             text = text,
@@ -249,13 +268,6 @@ fun getDayOfMonthSuffix(n: Int): String {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
-fun formatTimestamp2(timestamp: Long): String {
-    return Instant.ofEpochMilli(timestamp)
-        .atZone(ZoneId.systemDefault())
-        .toLocalTime()
-        .format(DateTimeFormatter.ofPattern("HH:mm"))
-}
 private fun formatTimestamp(timestamp: Long): String {
     val date = Date(timestamp)
     val format = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -279,14 +291,16 @@ fun ChatRow(
                 ),
             contentAlignment = Center
         ) {
-            Text(
-                text = message, style = TextStyle(
-                    color = Color.Black,
-                    fontSize = 15.sp
-                ),
-                modifier = Modifier.padding(vertical = 8.dp, horizontal = 15.dp),
-                textAlign = TextAlign.Start
-            )
+            SelectionContainer{
+                Text(
+                    text = message, style = TextStyle(
+                        color = Color.Black,
+                        fontSize = 15.sp
+                    ),
+                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 15.dp),
+                    textAlign = TextAlign.Start
+                )
+            }
         }
         Text(
             text = time,
@@ -301,7 +315,6 @@ fun ChatRow(
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTextField(
     text: String,
@@ -309,38 +322,53 @@ fun CustomTextField(
     onValueChange: (String) -> Unit,
     canChat: Boolean?,
     onTrailingIconClick: () -> Unit,
-    friendEmail:  String
+    friendEmail:  String,
+    addToMessages: (String) -> Unit,
+    dataStore: StoreUserEmail
 ) {
-    TextField(
-        value = text, onValueChange = { onValueChange(it) },
-        placeholder = {
-            Text(
-                text =  "Type Message",
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    color = Color.Black
-                ),
-                textAlign = TextAlign.Center
-            )
-        }
-        ,
-        maxLines = 3,
-        colors = TextFieldDefaults.colors(
-            focusedTextColor = Color.Black,
-            focusedContainerColor = Gray400,
-            unfocusedContainerColor = Gray400,
-            disabledContainerColor = Gray400,
-            focusedIndicatorColor = Color.DarkGray,
-            unfocusedIndicatorColor = Color.Transparent,
-        ),
-        leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
-        trailingIcon = {
-            CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick)
-                       },
-        modifier = modifier.fillMaxWidth(),
-        shape = CircleShape
-    )
+    if(canChat == true){
+        val maxLength = 190
 
+        val transformedText = remember(text) {
+            val trimmedText = if (text.length > maxLength) text.substring(0, maxLength) else text
+            mutableStateOf(trimmedText)
+        }
+
+        TextField(
+            value = transformedText.value,
+            onValueChange = { newString ->
+                if (newString.toByteArray(Charsets.UTF_8).size <= maxLength) {
+                    transformedText.value = newString
+                    onValueChange(newString)
+                }
+            },
+            placeholder = {
+                Text(
+                    text = "Type Message",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color.Black
+                    ),
+                    textAlign = TextAlign.Center
+                )
+            },
+            maxLines = 3,
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                focusedContainerColor = Gray400,
+                unfocusedContainerColor = Gray400,
+                disabledContainerColor = Gray400,
+                focusedIndicatorColor = Color.DarkGray,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            leadingIcon = { CommonIconButton(imageVector = Icons.Default.Add) },
+            trailingIcon = {
+                CommonIconButtonDrawable(R.drawable.baseline_send_24, message = text, canChat = canChat, friendEmail = friendEmail, onTrailingIconClick = onTrailingIconClick, addToMessages = addToMessages, dataStore = dataStore)
+            },
+            modifier = modifier.fillMaxWidth(),
+            shape = CircleShape
+        )
+    }
 }
 
 @Composable
@@ -366,9 +394,18 @@ fun CommonIconButtonDrawable(
     friendEmail: String,
     canChat: Boolean?,
     message: String,
-    onTrailingIconClick: () -> Unit
+    onTrailingIconClick: () -> Unit,
+    addToMessages: (String) -> Unit,
+    dataStore: StoreUserEmail
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    //val messageLimitViewModel: MessageLimitViewModel = viewModel()
+    val messageLimitViewModel = remember {
+        ViewModelProvider(context as ViewModelStoreOwner).get(MessageLimitViewModel::class.java)
+    }
+    val canSendMessage = messageLimitViewModel.canSendMessage()
+    //val context = LocalContext.current
     Box(
         modifier = Modifier
             .background(Yellow, CircleShape)
@@ -376,11 +413,25 @@ fun CommonIconButtonDrawable(
             .clickable {
                 onTrailingIconClick()
                 if (canChat == true) {
-                    scope.launch {
-                        addChat(message, friendEmail)
-                    }
-                } else {
+                    if (canSendMessage) {
+                        if(message.isNotEmpty()){
+                            messageLimitViewModel.incrementMessageCount()
+                            scope.launch {
+                                addToMessages(message)
+                                addChat(message, friendEmail, dataStore = dataStore)
+                            }
+                        }
+                    } else {
+                        val okm = "Can't send more than 50 messages per day!"
+                        val duration = Toast.LENGTH_LONG
 
+                        val toast = Toast.makeText(
+                            context,
+                            okm,
+                            duration
+                        ) // in Activity
+                        toast.show()
+                    }
                 }
             }, contentAlignment = Center
 
@@ -402,15 +453,17 @@ fun UserNameRow(
     onDeleteNavigateHome: () ->Unit,
     photourl: String,
     colorViewModel: ColorViewModel
-
-
 ) {
     val color = remember { mutableStateOf(colorViewModel.getColor(email)) }
-    Log.e("twophotu", "Photo is: $photourl")
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
             .data(photourl)
             .build()
+    )
+
+    val sharedKeysViewModel: SharedKeysViewModel = viewModel(
+        key = "SharedKeysViewModel",
+        factory = SharedKeysViewModelFactory(dataStore)
     )
 
     val emailState = remember { mutableStateOf("") }
@@ -494,6 +547,7 @@ fun UserNameRow(
                         Expanded = false
                         scope.launch {
                             deleteFriend(email,dataStore)
+                            sharedKeysViewModel.removeEmailFromCachedSharedKeys(email)
                             onDeleteNavigateHome()
                         }
                     })
@@ -502,5 +556,3 @@ fun UserNameRow(
         }
     }
 }
-
-

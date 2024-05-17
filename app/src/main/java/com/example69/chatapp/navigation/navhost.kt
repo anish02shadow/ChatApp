@@ -5,48 +5,48 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example69.chatapp.MainActivity
-import com.example69.chatapp.ui.theme.Screens.ChatScreen
-import com.example69.chatapp.ui.theme.Screens.CreateAccountScreenEmail
-import com.example69.chatapp.ui.theme.Screens.HomeScreen
-import com.example69.chatapp.ui.theme.Screens.LoginScreenEmail
-import com.google.firebase.auth.FirebaseAuth
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import androidx.navigation.NavType
 import androidx.navigation.navArgument
-import com.example69.chatapp.data.FriendsData
-import com.example69.chatapp.data.Message
+import com.example69.chatapp.MainActivity
+import com.example69.chatapp.data.FriendPhoto
 import com.example69.chatapp.data.StoreUserEmail
 import com.example69.chatapp.firebase.acceptFriendRequest
-import com.example69.chatapp.firebase.getFriendRequests
-import com.example69.chatapp.firebase.getFriendsEmails
+import com.example69.chatapp.firebase.deleteFriendFromUser
 import com.example69.chatapp.firebase.getFriendsPhotos
-import com.example69.chatapp.firebase.getMood
-import com.example69.chatapp.firebase.retrieveMessages
+import com.example69.chatapp.realmdb.FriendMessagesRealm
+import com.example69.chatapp.realmdb.RealmViewModel
+import com.example69.chatapp.ui.theme.Screens.ChatScreen
+import com.example69.chatapp.ui.theme.Screens.CreateAccountScreenEmail
+import com.example69.chatapp.ui.theme.Screens.DeleteFriendsList
 import com.example69.chatapp.ui.theme.Screens.FriendRequestsScreen
+import com.example69.chatapp.ui.theme.Screens.HomeScreen
+import com.example69.chatapp.ui.theme.Screens.LoginScreenEmail
+import com.example69.chatapp.ui.theme.Screens.OnBoarding
 import com.example69.chatapp.ui.theme.Screens.SignUpScreenEmail
 import com.example69.chatapp.ui.theme.ViewModels.ColorViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModel
 import com.example69.chatapp.ui.theme.ViewModels.MainViewModelFactory
-import kotlinx.coroutines.Dispatchers
+import com.example69.chatapp.ui.theme.ViewModels.RealmViewModelFactory
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModel
+import com.example69.chatapp.ui.theme.ViewModels.SharedKeysViewModelFactory
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.math.BigInteger
+import java.security.PrivateKey
+import java.security.PublicKey
 
 
+@OptIn(ExperimentalPagerApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainNavigation(activity: MainActivity) {
@@ -57,161 +57,138 @@ fun MainNavigation(activity: MainActivity) {
     val scope = rememberCoroutineScope()
     val dataStore = StoreUserEmail(context)
 
-
     val emailState = remember { mutableStateOf("") }
-    val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
-    val savedEmail by savedEmailState
+    var username = remember { mutableStateOf("") }
+    val dummy = dataStore.getDummyKeyPair()
+    val pk = remember { mutableStateOf<Pair<PrivateKey,PublicKey>>(dummy.first to dummy.second) }
     var userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
+    val phoneState = remember {
+        mutableStateOf("")
+    }
+    val otpState = remember {
+        mutableStateOf("")
+    }
 
     val friendEmail = remember{ mutableStateOf("") }
     val friendUsername = remember{ mutableStateOf("") }
-    val photoURL = remember{ mutableStateOf("") }
+    val photoURL = remember{ mutableStateOf<String>("No Photo") }
+    var (photoUrls) = remember { mutableStateOf<List<FriendPhoto>>(emptyList()) }
+    var (userProfileImage) = remember { mutableStateOf<FriendPhoto>(FriendPhoto("No Photo",emailState.value)) }
 
-    var mood = remember{ mutableStateOf<String?>("No Photo") }
-
-//    val initialFriendsState: Flow<Pair<List<FriendsData>, Pair<String?, String>>> = flow {
-//        emit(emptyList<FriendsData>() to ("" to ""))
-//    }
-//
-//    val friendsState = remember { mutableStateOf(initialFriendsState) }
-
-    val friendsAndMessages = remember { mutableStateOf<Pair<List<FriendsData>, Pair<String?, String>>?>(null) }
-
-    val initialPhotoUrls = remember { mutableStateOf<Pair<List<String>, String>>(emptyList<String>() to "") }
-
-    var (friendsList) = remember { mutableStateOf<List<FriendsData>>(emptyList()) }
-    var (photoUrls) = remember { mutableStateOf<List<String>>(emptyList()) }
-    var (userMessagesState) = remember { mutableStateOf<Pair<String?, String>>("No Messages" to "00:00") }
-    var (userProfileImage) = remember { mutableStateOf<String>("No Photo") }
-
-//    val initialPhotoUrls: Flow<Pair<List<String>, String>> = flow {
-//        emit(emptyList<String>() to "")
-//    }
-//
-//    val photoUrlsState = remember { mutableStateOf(initialPhotoUrls) }
+    val sharedKeysViewModel: SharedKeysViewModel = viewModel(
+        key = "SharedKeysViewModel",
+        factory = SharedKeysViewModelFactory(dataStore)
+    )
 
     val viewModel: MainViewModel = viewModel(
         key = "MainViewModel",
-        factory = MainViewModelFactory(dataStore, navController)
+        factory = MainViewModelFactory(dataStore,sharedKeysViewModel)
     )
 
-    // Retrieve the email value from DataStore preferences
+    val realmViewModel: RealmViewModel = viewModel(
+        key = "RealmViewModel",
+        factory = RealmViewModelFactory(viewModel, dataStore,sharedKeysViewModel)
+    )
+
     LaunchedEffect(Unit) {
         val email = dataStore.getEmail.first()
+        username.value = dataStore.getUsername.first()
         emailState.value = email ?: ""
+        realmViewModel.addMessagesToRealm(emailState.value)
         viewModel.onEmailChange(emailState.value)
-//        val moodValue = getMood(emailState.value).firstOrNull()
-//        mood.value = moodValue ?: "No Photo"
-        viewModel.getmood(emailState.value)
-        Log.e("STORE", "${emailState.value} is EmailState.Value launched effect")
     }
 
     fun onNavigateToChat(canChat: Boolean) {
         navController.navigate("CHAT_SCREEN/$canChat")
     }
 
-
     NavHost(navController = navController, startDestination = HOME_SCREEN) {
+        composable(ONBOARDING_SCREEN){
+            OnBoarding(onNavigateToLogin = { navController.navigate(LOGIN_SCREEN) })
+        }
+
         composable(LOGIN_SCREEN) {
             if (!userIsSignedIn) {
-                Log.e("STORE", "${savedEmail} is the email in LOGIN SCREEN")
                 LoginScreenEmail(
                     onNavigateToHome = { navController.navigate(HOME_SCREEN) },
                     activity,
                     onNavigateToCreateAccount = { navController.navigate(SIGNUP_SCREEN) },
-                    onEmailChange = { newVal ->
+                    onEmailChange = { newVal,newPass ->
                         scope.launch {
-                            dataStore.saveEmail(newVal)
-                            emailState.value = newVal
+                                emailState.value = newVal
+                                pk.value = dataStore.savePK(newPass,newVal)
+                                dataStore.saveEmail(newVal)
+                            sharedKeysViewModel.preloadDecryptedSharedKeys(dataStore)
+                            when(pk.value){
+                                BigInteger.ZERO->{}
+                                    else ->{
+                                        navController.navigate(HOME_SCREEN)
+                                    }
+                            }
                         }
+                    },
+                    realmViewModel = realmViewModel,
+                    dataStore = dataStore,
+                    onUsernameCheck = {newVal ->
+                        username.value = newVal
                     }
                 )
             }
         }
         composable(HOME_SCREEN) {
             userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-            if(!userIsSignedIn){
-                navController.navigate(LOGIN_SCREEN)
-            }
-            else{
+            var username = ""
+            if (!userIsSignedIn) {
+                navController.navigate(ONBOARDING_SCREEN)
+            } else {
                 LaunchedEffect(emailState.value) {
                     emailState.value = dataStore.getEmail.first()
+                    viewModel.onEmailChange(emailState.value)
+                    viewModel.getmood(emailState.value)
+                    getFriendsPhotos(dataStore).collect { (photos, userProfileImagee) ->
+                        photoUrls = photos
+                        userProfileImage = userProfileImagee
+                    }
+
                 }
                 if (emailState.value.isNotEmpty()) {
-                    Log.e("STORE", "${emailState.value} is the email in HOMESCREEN")
-//                    val friends = getFriendsEmails(emailState.value, dataStore)
-//                    val photourls = getFriendsPhotos(dataStore)
-                    if (friendsAndMessages.value == null || initialPhotoUrls.value == (emptyList<String>() to "")) {
-                        // Show a loading indicator or placeholder
-                        LaunchedEffect(friendsList) {
-                            withContext(Dispatchers.IO) {
-                                viewModel.getFriendsAndMessages()
-                                viewModel.getPhotoUrls()
-                                getFriendsEmails(
-                                    emailState.value,
-                                    dataStore
-                                ).collect { (friends, userMessages) ->
-                                    getFriendsPhotos(dataStore).collect { (photos, userProfileImage) ->
-                                        friendsAndMessages.value =
-                                            friends to (userMessages.first to userMessages.second)
-                                        initialPhotoUrls.value = photos to userProfileImage
-                                    }
-                                }
-                            }
-                        }
-                    }
 
-                    if(friendsAndMessages.value !=null){
-                        val (friends, messagesState) = friendsAndMessages.value!!
-                        friendsList = friends
-                        userMessagesState = messagesState
+                    if (userIsSignedIn && realmViewModel.friendMessagesRealm != emptyList<FriendMessagesRealm>()) {
 
-                        val (urls, profileImage) = initialPhotoUrls.value
-                        photoUrls = urls
-                        userProfileImage = profileImage
-                    }
-
-
-                    if (userIsSignedIn && friendsAndMessages.value != null && initialPhotoUrls.value != (emptyList<String>() to "") ) {
-                        viewModel.friendsAndMessages.value?.let { it1 ->
-                            HomeScreen(
-                                onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
-                                friends = it1.first,
-                                email2 = emailState.value,
-                                dataStore = dataStore,
-                                onClick = { email, username, photourl ->
-                                    friendEmail.value = email
-                                    friendUsername.value = username
-                                    photoURL.value = photourl
-                                },
-                                onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean) },
-                                onFriendRequests = { navController.navigate(FRIEND_REQUESTS) },
-                                photoUrls = photoUrls,
-                                userMessagesState = it1.second,
-                                userProfileImage = userProfileImage,
-                                onFriendsChange = {newVal -> friendsList = newVal},
-                                onUserMessageStateChange = {newVal -> userMessagesState = newVal},
-                                viewModel = viewModel,
-                                moodOn = viewModel.MOOD.value,
-                                colorViewModel = colorViewModel
-                            )
-                        }
+                        HomeScreen(
+                            onLogOutPress = { navController.navigate(LOGIN_SCREEN) },
+                            email2 = emailState.value,
+                            dataStore = dataStore,
+                            onClick = { email, username, photourl ->
+                                friendEmail.value = email
+                                friendUsername.value = username
+                                photoURL.value = photourl
+                            },
+                            onNavigateToChat = { canChat -> onNavigateToChat(canChat as Boolean) },
+                            onFriendRequests = { navController.navigate(FRIEND_REQUESTS) },
+                            photoUrls = photoUrls,
+                            userProfileImage = userProfileImage,
+                            viewModel = viewModel,
+                            colorViewModel = colorViewModel,
+                            sharedKeysViewModel = sharedKeysViewModel,
+                            onDeleteFriends = {navController.navigate(DELETE_FRIENDS)}
+                        )
                     }
                 }
             }
         }
+
 
         composable(
             "CHAT_SCREEN/{canChat}",
             arguments = listOf(navArgument("canChat") { type = NavType.BoolType })
         ) { backStackEntry ->
             userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-            val messages = retrieveMessages(friendEmail.value)
-            //ChatScreen(navController)
+            val message = realmViewModel.getFriendDataTRealm(friendEmail.value)
             if (userIsSignedIn) {
                 ChatScreen(
                     friendEmail.value,
-                    messages,
+                    message,
                     friendUsername.value,
                     backStackEntry.arguments?.getBoolean("canChat"),
                     dataStore,
@@ -222,177 +199,67 @@ fun MainNavigation(activity: MainActivity) {
             }
         }
         composable(SIGNUP_SCREEN) {
-            CreateAccountScreenEmail(onNavigateToUsername = { navController.navigate(USERNAME_SCREEN) },
-                activity = activity,
-                onEmailChange = { newVal ->
+            CreateAccountScreenEmail(
+                onEmailChange = { newVal,newPass ->
                     scope.launch {
-                        dataStore.saveEmail(newVal)
+                        phoneState.value = newVal
+                        otpState.value = newPass
+                        if(!otpState.value.equals("")){
+                            navController.navigate(USERNAME_SCREEN)
+                        }
                     }
                 })
-            //SignUpScreen(navHostController = navController , activity = activity)
         }
         composable(USERNAME_SCREEN) {
             SignUpScreenEmail(
-                activity = activity,
+                onUsernameCheck = {newVal ->
+                    username.value = newVal
+                },
                 dataStore = dataStore,
-                onNavigateToHome = { navController.navigate(HOME_SCREEN) })
+                onNavigateToHome = {
+                    scope.launch {
+                        emailState.value = phoneState.value
+                        pk.value = dataStore.savePK(otpState.value,phoneState.value)
+                        dataStore.saveEmail(phoneState.value)
+                        when(pk.value){
+                            BigInteger.ZERO->{}
+                            else ->{
+                                navController.navigate(HOME_SCREEN)
+                            }
+                        }
+                    } },
+                activity = activity,
+                otpState = otpState.value,
+                phoneState = phoneState.value)
         }
         composable(FRIEND_REQUESTS){
-            //val friendRequests = getFriendRequests(dataStore = dataStore)
             viewModel.getFriendRequests()
-            //Log.e("STORE","FRIEND_REQUESTS ${friendRequests}")
             FriendRequestsScreen(viewModel.friendRequests.value, onAccept = { newVal ->
                 scope.launch {
                     acceptFriendRequest(newVal,dataStore)
                 }
                },
-                viewModel = viewModel
+                viewModel = viewModel,
+                dataStore = dataStore,
+                deleteText ="Looks like you don't have any friend requests :(",
+                scaffoldtext =  "Swipe Right to accept!"
+            )
+        }
+        composable(DELETE_FRIENDS){
+            viewModel.getFriends()
+            DeleteFriendsList(viewModel.friends.value, onAccept = { newVal ->
+                scope.launch {
+                    deleteFriendFromUser(newVal,dataStore)
+                }
+            },
+                viewModel = viewModel,
+                dataStore = dataStore,
+                deleteText = "Looks like you don't have any friends :(",
+                scaffoldtext = "Swipe Right to delete who all can view your messages"
             )
         }
     }
 }
-
-
-//@RequiresApi(Build.VERSION_CODES.O)
-//@Composable
-//fun MainNavigation(activity: MainActivity) {
-//    val navController = rememberNavController()
-//    val context = LocalContext.current
-//    val dataStore = StoreUserEmail(context)
-//    val viewModel: MainViewModel = viewModel(
-//        key = "MainViewModel",
-//        factory = MainViewModelFactory(dataStore, navController)
-//    )
-//
-//    val emailState = remember { mutableStateOf("") }
-//    val savedEmailState = rememberUpdatedState(dataStore.getEmail.collectAsState(initial = "").value)
-//    val savedEmail by savedEmailState
-//    var userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-//
-//    //val emailState by viewModel.emailState
-//    //val userIsSignedIn by viewModel.userIsSignedIn
-//
-//    val friendEmail = remember{ mutableStateOf("") }
-//    val friendUsername = remember{ mutableStateOf("") }
-//
-//    val friendsAndMessages by viewModel.friendsAndMessages
-//    val initialPhotoUrls by viewModel.initialPhotoUrls
-//    //val friendEmail by viewModel.friendEmail
-//    //val friendUsername by viewModel.friendUsername
-//    val canChat by viewModel.canChat
-//    val messages by viewModel.messages
-//    val friendRequests by viewModel.friendRequests
-//
-//    val scope  = rememberCoroutineScope()
-//    LaunchedEffect(Unit) {
-//        viewModel.initApp()
-//        val email = dataStore.getEmail.first()
-//        emailState.value = email ?: ""
-//        Log.e("STORE", "${emailState.value} is EmailState.Value launched effect")
-//    }
-//    NavHost(navController = navController, startDestination = HOME_SCREEN) {
-//        composable(LOGIN_SCREEN) {
-//            if (!userIsSignedIn) {
-//                LoginScreenEmail(
-//                    onNavigateToHome = { navController.navigate(HOME_SCREEN) },
-//                    activity,
-//                    onNavigateToCreateAccount = { navController.navigate(SIGNUP_SCREEN) },
-//                    onEmailChange = { newVal ->
-//                        scope.launch {
-//                            dataStore.saveEmail(newVal)
-//                            emailState.value = newVal
-//                        }
-//                    }
-//                )
-//            }
-//        }
-//        composable(HOME_SCREEN) {
-//            userIsSignedIn = FirebaseAuth.getInstance().currentUser != null
-//            if (!userIsSignedIn) {
-//                navController.navigate(LOGIN_SCREEN)
-//            } else {
-//                //Log.e("Refresh", "Calling HomeScreen")
-//                LaunchedEffect(emailState.value) {
-//                    emailState.value = dataStore.getEmail.first()
-//                }
-//                if (emailState.value.isNotEmpty()) {
-//                    HomeScreen(
-//                        onLogOutPress = { viewModel.onLogout(); navController.navigate(LOGIN_SCREEN) },
-//                        friends = friendsAndMessages?.first ?: emptyList(),
-//                        email2 = emailState.value,
-//                        dataStore = dataStore,
-//                        onClick = { email, username, canChat ->
-////                        viewModel.onChatScreenArguments(email)
-//                            viewModel.onFriendClick(email, username, canChat)
-//                        },
-//                        onNavigateToChat = { canChat -> navController.navigate("CHAT_SCREEN/$canChat") },
-//                        onFriendRequests = { navController.navigate(FRIEND_REQUESTS) },
-//                        photoUrls = initialPhotoUrls.first,
-//                        userMessagesState = friendsAndMessages?.second
-//                            ?: ("No Messages" to "00:00"),
-//                        userProfileImage = initialPhotoUrls.second,
-//                        onFriendsChange = { newVal -> viewModel.onFriendsChange(newVal) },
-//                        onUserMessageStateChange = { newVal ->
-//                            viewModel.onUserMessageStateChange(
-//                                newVal
-//                            )
-//                        }
-//                    )
-//                }
-//            }
-//        }
-//        composable(
-//            "CHAT_SCREEN/{canChat}",
-//            arguments = listOf(navArgument("canChat") { type = NavType.BoolType })
-//        ) { backStackEntry ->
-//            //viewModel.onChatScreenArguments()
-//            Log.e("Refresh","Before message2")
-//            val message2 = retrieveMessages(viewModel.friendEmail.value)
-//            Log.e("Refresh","message2 size: AFTER")
-//            if (userIsSignedIn) {
-//                ChatScreen(
-//                    friendEmail.value,
-//                    message2,
-//                    friendUsername.value,
-//                    backStackEntry.arguments?.getBoolean("canChat"),
-//                    dataStore,
-//                    { navController.navigate(HOME_SCREEN) }
-//                )
-//            }
-//        }
-//        composable(SIGNUP_SCREEN) {
-//            CreateAccountScreenEmail(
-//                onNavigateToUsername = { navController.navigate(USERNAME_SCREEN) },
-//                activity = activity,
-//                onEmailChange = { newVal ->
-//                    viewModel.onCreateAccount(newVal)
-//                }
-//            )
-//        }
-//        composable(USERNAME_SCREEN) {
-//            SignUpScreenEmail(
-//                activity = activity,
-//                dataStore = dataStore,
-//                onNavigateToHome = {
-//                    navController.navigate(HOME_SCREEN)
-//                }
-//            )
-//        }
-//        composable(FRIEND_REQUESTS) {
-//            viewModel.getFriendRequests()
-//            FriendRequestsScreen(
-//                friendRequests,
-//                onAccept = { request ->
-//                    scope.launch {
-//                        acceptFriendRequest(request,dataStore)
-//                    }
-//                    //viewModel.onacceptFriendRequest(request)
-//                }
-//            )
-//        }
-//    }
-//}
-
 
 const val HOME_SCREEN = "Home screen"
 const val CHAT_SCREEN = "Chat screen/{canChat}"
@@ -400,5 +267,7 @@ const val LOGIN_SCREEN = "lOGIN screen"
 const val SIGNUP_SCREEN = "Signup Screen"
 const val USERNAME_SCREEN = "Username Screen"
 const val FRIEND_REQUESTS = "Friend Requests Screen"
+const val DELETE_FRIENDS = "Delete Friends Screen"
+const val ONBOARDING_SCREEN = "OnBoarding Screen"
 
 

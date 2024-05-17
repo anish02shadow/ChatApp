@@ -4,7 +4,6 @@ import android.app.Activity
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import com.example69.chatapp.auth.AuthRepository
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(

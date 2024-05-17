@@ -8,12 +8,12 @@ import com.example69.chatapp.data.StoreUserEmail
 
 class MainViewModelFactory(
     private val dataStore: StoreUserEmail,
-    private val navController: NavController
+    private val sharedKeysViewModel: SharedKeysViewModel
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return MainViewModel(dataStore,navController) as T
+            return MainViewModel(dataStore,sharedKeysViewModel) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
